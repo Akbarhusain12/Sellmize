@@ -14,7 +14,6 @@ from werkzeug.utils import secure_filename
 from config import Config
 from ecommerce_analyzer import process_data
 import pandas as pd
-import glob
 import chardet
 import google.generativeai as genai
 import json, re
