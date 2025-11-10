@@ -108,7 +108,8 @@ def find_column(df, possible_names):
 
 
 def process_data(order_files, payment_files, return_files, cost_price_file,
-                 dynamic_expenses, output_folder):
+                 dynamic_expenses, output_folder,
+                 start_date=None, end_date=None):
 
 
     # --- 1. Load Data ---
@@ -209,6 +210,30 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     for col in ['amazon-order-id', 'sku', 'quantity', 'item_price', 'order_date', 'ship_state']:
         if col not in filtered_orders.columns:
             filtered_orders[col] = None
+            
+    if 'order_date' in filtered_orders.columns and filtered_orders['order_date'].notna().any():
+        try:
+            # Convert to datetime safely
+            filtered_orders['order_date'] = pd.to_datetime(
+                filtered_orders['order_date'], errors='coerce', utc=True
+            ).dt.tz_localize(None)
+
+            # Apply filters if provided
+            if start_date:
+                start_dt = pd.to_datetime(start_date)
+                filtered_orders = filtered_orders[filtered_orders['order_date'] >= start_dt]
+
+            if end_date:
+                end_dt = pd.to_datetime(end_date)
+                filtered_orders = filtered_orders[filtered_orders['order_date'] <= end_dt]
+
+            print(f"📅 Date filtering applied: {len(filtered_orders)} records remain "
+                  f"from {start_date or 'start'} to {end_date or 'end'}.")
+
+        except Exception as e:
+            print(f"⚠️ Date filtering skipped due to error: {e}")
+    else:
+        print("⚠️ No valid 'order_date' column found for date filtering.")
 
 
     # --- TOP 10 RETURNED SKUs Analysis ---
@@ -262,6 +287,25 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         right_on='order id',
         how='left'
     )
+
+    unpaid_orders = merged_data[merged_data['total'].isna()].copy()
+
+    # Clean and keep relevant columns for reporting
+    unpaid_orders = unpaid_orders[[
+        'amazon-order-id', 'sku', 'quantity', 'item_price', 'order_date', 'ship_state'
+    ]].copy()
+
+    unpaid_orders.rename(columns={
+        'amazon-order-id': 'Order ID',
+        'sku': 'SKU',
+        'quantity': 'Quantity',
+        'item_price': 'Item Price',
+        'order_date': 'Order Date',
+        'ship_state': 'Ship State'
+    }, inplace=True)
+
+    unpaid_orders = unpaid_orders.sort_values(by='Order Date', ascending=False).reset_index(drop=True)
+    print(f"⚠️ Found {len(unpaid_orders)} unpaid orders (present in Orders but missing in Payments).")
 
     # Keep only rows where payment total exists (i.e., payment matched)
     merged_data = merged_data[merged_data['total'].notna()]
@@ -351,6 +395,7 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     filtered_return['Order ID'] = filtered_return['Order ID'].astype(str)
     filtered_return = filtered_return.drop_duplicates(subset=['Order ID'], keep='last')
 
+
     merged_data = pd.merge(
         merged_data,
         filtered_return[['Order ID', 'Return type']],
@@ -425,6 +470,8 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         top_10_skus.to_excel(writer, sheet_name='Top 10 SKUs', index=False)
         top_10_returns.to_excel(writer, sheet_name='Top 10 Returns', index=False)
         top_10_states.to_excel(writer, sheet_name='Top 10 States', index=False)
+        unpaid_orders.to_excel(writer, sheet_name='Unpaid Orders', index=False)
+
 
     print(f"✅ Processing complete. File saved at: {output_path}")
     return file_name

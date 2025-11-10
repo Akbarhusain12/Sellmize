@@ -6,6 +6,11 @@
     <title>Profit Analyzer - SellMize AI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
     <script>
       tailwind.config = {
@@ -145,6 +150,48 @@
       .tab-button:hover:not(.active) {
         color: #0369a1;
         background-color: #f0f9ff;
+      }
+      /* Date input icon theming */
+      input[type="date"]::-webkit-calendar-picker-indicator {
+        filter: invert(48%) sepia(86%) saturate(190%) hue-rotate(175deg);
+        opacity: 0.8;
+        cursor: pointer;
+        transition: all 0.2s ease-in-out;
+      }
+      input[type="date"]::-webkit-calendar-picker-indicator:hover {
+        opacity: 1;
+        transform: scale(1.1);
+      }
+
+      /* Remove default spin buttons for cleaner look */
+      input[type="date"]::-webkit-inner-spin-button,
+      input[type="date"]::-webkit-clear-button {
+        display: none;
+      }
+      .flatpickr-calendar {
+        font-family: "Inter", sans-serif;
+        border-radius: 1rem !important;
+        border: 1px solid rgba(14, 165, 233, 0.3) !important;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+      }
+
+      .flatpickr-day.today {
+        border-color: #0ea5e9 !important;
+        background-color: rgba(14, 165, 233, 0.1) !important;
+        color: #0369a1 !important;
+        font-weight: 600;
+      }
+
+      .flatpickr-day.selected {
+        background: linear-gradient(135deg, #0ea5e9, #d946ef) !important;
+        color: white !important;
+        border-radius: 0.5rem !important;
+      }
+
+      .flatpickr-months {
+        background: linear-gradient(135deg, #0ea5e9, #d946ef);
+        color: white;
+        border-radius: 0.5rem 0.5rem 0 0;
       }
     </style>
   </head>
@@ -357,6 +404,66 @@
               </div>
             </div>
 
+            <div class="pt-6 border-t border-gray-200">
+              <h3
+                class="text-lg font-semibold text-gray-800 mb-4 flex items-center"
+              >
+                <svg
+                  class="w-5 h-5 mr-2 text-primary-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10m-11 8h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                  />
+                </svg>
+                Date Range Filter
+              </h3>
+
+              <div
+                class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-xl border border-gray-200 shadow-inner"
+              >
+                <div>
+                  <label
+                    for="start_date"
+                    class="block text-sm font-medium text-gray-700 mb-2"
+                  >
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    id="start_date"
+                    name="start_date"
+                    class="date-input w-full rounded-lg border border-primary-200 bg-white/80 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-gray-800 placeholder-gray-400 text-sm py-3 px-4 transition-all duration-200 hover:border-primary-400 hover:shadow-md"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    for="end_date"
+                    class="block text-sm font-medium text-gray-700 mb-2"
+                  >
+                    End Date
+                  </label>
+                  <input
+                    type="date"
+                    id="end_date"
+                    name="end_date"
+                    class="date-input w-full rounded-lg border border-primary-200 bg-white/80 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-gray-800 placeholder-gray-400 text-sm py-3 px-4 transition-all duration-200 hover:border-primary-400 hover:shadow-md"
+                  />
+                </div>
+              </div>
+
+              <p class="text-sm text-gray-500 mt-3 italic">
+                (Optional) Select a date range to limit the analysis — leave
+                empty to include all months.
+              </p>
+            </div>
+
             <div class="pt-4 border-t border-gray-200">
               <h3 class="text-lg font-semibold text-gray-800 mb-3">
                 Business Expenses
@@ -528,6 +635,25 @@
               </svg>
               Returns Analysis
             </button>
+            <button
+              id="unpaidTab"
+              class="tab-button flex items-center px-6 py-3 font-semibold text-gray-600 hover:text-primary-600 transition-all"
+            >
+              <svg
+                class="w-5 h-5 mr-2 text-yellow-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 8v4l3 3m6 0a9 9 0 11-18 0 9 9 0 0118 0z"
+                ></path>
+              </svg>
+              Unpaid Orders
+            </button>
           </div>
 
           <div id="ordersContent" class="tab-content" style="display: none">
@@ -696,6 +822,69 @@
               </table>
             </div>
           </div>
+
+          <div id="unpaidContent" class="tab-content" style="display: none">
+            <div class="flex items-center justify-between mb-6">
+              <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+                <svg
+                  class="w-7 h-7 mr-2 text-yellow-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 8v4l3 3m6 0a9 9 0 11-18 0 9 9 0 0118 0z"
+                  ></path>
+                </svg>
+                Orders Not Yet Paid
+              </h2>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gradient-to-r from-yellow-50 to-amber-50">
+                  <tr>
+                    <th
+                      class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
+                    >
+                      Order ID
+                    </th>
+                    <th
+                      class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
+                    >
+                      SKU
+                    </th>
+                    <th
+                      class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
+                    >
+                      Quantity
+                    </th>
+                    <th
+                      class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
+                    >
+                      Item Price
+                    </th>
+                    <th
+                      class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
+                    >
+                      Order Date
+                    </th>
+                    <th
+                      class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
+                    >
+                      Ship State
+                    </th>
+                  </tr>
+                </thead>
+                <tbody
+                  id="unpaidTableBody"
+                  class="bg-white divide-y divide-gray-200"
+                ></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </main>
@@ -842,6 +1031,20 @@
     </footer>
 
     <script>
+      flatpickr("#start_date", {
+        dateFormat: "Y-m-d",
+        theme: "light",
+        defaultDate: null,
+        maxDate: "today",
+      });
+
+      flatpickr("#end_date", {
+        dateFormat: "Y-m-d",
+        theme: "light",
+        defaultDate: null,
+        maxDate: "today",
+      });
+
       // This listener ensures all HTML is loaded before we try to find elements
       document.addEventListener("DOMContentLoaded", function () {
         let currentFileName = null;
@@ -862,6 +1065,8 @@
         const returnsContent = document.getElementById("returnsContent");
         const statesTab = document.getElementById("statesTab");
         const statesContent = document.getElementById("statesContent");
+        const unpaidTab = document.getElementById("unpaidTab");
+        const unpaidContent = document.getElementById("unpaidContent");
 
         // --- 2. DEFINE ALL FUNCTIONS ---
 
@@ -1174,6 +1379,39 @@
                 });
               }
 
+              // --- Populate Unpaid Orders ---
+              const unpaidTableBody =
+                document.getElementById("unpaidTableBody");
+              unpaidTableBody.innerHTML = "";
+              if (result.unpaid_orders && result.unpaid_orders.length > 0) {
+                result.unpaid_orders.forEach((order) => {
+                  const row = document.createElement("tr");
+                  row.className = "hover:bg-yellow-50 transition-colors";
+                  row.innerHTML = `
+      <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${
+        order["Order ID"]
+      }</td>
+      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${
+        order.SKU
+      }</td>
+      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${
+        order.Quantity
+      }</td>
+      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">₹${
+        order["Item Price"]
+      }</td>
+      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${
+        order["Order Date"]
+          ? new Date(order["Order Date"]).toLocaleDateString()
+          : "-"
+      }</td>
+      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${
+        order["Ship State"] || "-"
+      }</td>`;
+                  unpaidTableBody.appendChild(row);
+                });
+              }
+
               // --- Show results ---
               document.getElementById("summarySection").style.display = "block";
               document.getElementById("tabSection").style.display = "block";
@@ -1244,7 +1482,7 @@
         // Handle Tab Switching
         function switchTabs(tab) {
           // Reset all buttons
-          [ordersTab, returnsTab, statesTab].forEach((btn) =>
+          [ordersTab, returnsTab, statesTab, unpaidTab].forEach((btn) =>
             btn.classList.remove(
               "active",
               "text-primary-600",
@@ -1253,7 +1491,7 @@
           );
 
           // Hide all contents
-          [ordersContent, returnsContent, statesContent].forEach(
+          [ordersContent, returnsContent, statesContent, unpaidContent].forEach(
             (el) => (el.style.display = "none")
           );
 
@@ -1279,6 +1517,13 @@
               "border-primary-600"
             );
             statesContent.style.display = "block";
+          } else if (tab === "unpaid") {
+            unpaidTab.classList.add(
+              "active",
+              "text-primary-600",
+              "border-primary-600"
+            );
+            unpaidContent.style.display = "block";
           }
         }
 
@@ -1365,6 +1610,7 @@
         ordersTab.addEventListener("click", () => switchTabs("orders"));
         returnsTab.addEventListener("click", () => switchTabs("returns"));
         statesTab.addEventListener("click", () => switchTabs("states"));
+        unpaidTab.addEventListener("click", () => switchTabs("unpaid"));
       });
     </script>
   </body>

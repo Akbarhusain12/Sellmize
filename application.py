@@ -215,6 +215,12 @@ def analyze():
                     converted_return_paths.append(excel_path)
                 else:
                     converted_return_paths.append(file)
+            start_date = request.form.get('start_date')
+            end_date = request.form.get('end_date')
+
+            # Convert empty strings to None for safety
+            start_date = start_date if start_date else None
+            end_date = end_date if end_date else None
 
             output_filename = process_data(
                 order_files=converted_order_paths,
@@ -222,7 +228,9 @@ def analyze():
                 return_files=return_paths,
                 cost_price_file=cost_price_path,
                 dynamic_expenses=dynamic_expenses,
-                output_folder=app.config['OUTPUT_FOLDER']
+                output_folder=app.config['OUTPUT_FOLDER'],
+                start_date=start_date,    
+                end_date=end_date 
             )
 
             
@@ -236,6 +244,9 @@ def analyze():
 
             # Read Top 10 SKUs sheet
             top_10_df = pd.read_excel(output_path, sheet_name='Top 10 SKUs')
+            
+            unpaid_orders_df = pd.read_excel(output_path, sheet_name='Unpaid Orders')
+            unpaid_orders_list = unpaid_orders_df.to_dict('records')
 
             # Read Top 10 Returns sheet
             try:
@@ -297,7 +308,8 @@ def analyze():
                 'summary': summary_dict,
                 'top_10_skus': top_10_list,
                 'top_10_returns': top_10_returns_list,
-                'top_states': top_states_list
+                'top_states': top_states_list,
+                'unpaid_orders': unpaid_orders_list
             })
 
         except Exception as e:
