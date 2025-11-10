@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Profit Analyzer - SellMate AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: {
+                50: "#f0f9ff",
+                100: "#e0f2fe",
+                200: "#bae6fd",
+                300: "#7dd3fc",
+                400: "#38bdf8",
+                500: "#0ea5e9",
+                600: "#0284c7",
+                700: "#0369a1",
+                800: "#075985",
+                900: "#0c4a6e",
+              },
+              accent: {
+                50: "#fdf4ff",
+                100: "#fae8ff",
+                200: "#f5d0fe",
+                300: "#f0abfc",
+                400: "#e879f9",
+                500: "#d946ef",
+                600: "#c026d3",
+                700: "#a21caf",
+                800: "#86198f",
+                900: "#701a75",
+              },
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
+
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      .flash {
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        animation: slideIn 0.3s ease-out;
+      }
+      @keyframes slideIn {
+        from {
+          transform: translateY(-20px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+      .flash.error {
+        background-color: #fef2f2;
+        color: #dc2626;
+        border: 1px solid #fecaca;
+      }
+      .flash.success {
+        background-color: #f0fdf4;
+        color: #16a34a;
+        border: 1px solid #bbf7d0;
+      }
+      .flash.info {
+        background-color: #eff6ff;
+        color: #2563eb;
+        border: 1px solid #bfdbfe;
+      }
+      .loading {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: #fff;
+        animation: spin 1s ease-in-out infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .nav-link {
+        position: relative;
+        transition: all 0.3s ease;
+      }
+      .nav-link::after {
+        content: "";
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 0;
+        height: 2px;
+        background: linear-gradient(90deg, #0ea5e9, #d946ef);
+        transition: width 0.3s ease;
+      }
+      .nav-link:hover::after,
+      .nav-link.active::after {
+        width: 100%;
+      }
+      .gradient-bg {
+        background: linear-gradient(
+          135deg,
+          #0ea5e9 0%,
+          #7dd3fc 50%,
+          #d946ef 100%
+        );
+      }
+      .card-hover {
+        transition: all 0.3s ease;
+      }
+      .card-hover:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1),
+          0 8px 10px -6px rgb(0 0 0 / 0.1);
+      }
+      .glass-effect {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+      }
+      .tab-button {
+        position: relative;
+      }
+      .tab-button.active {
+        color: #0284c7;
+        border-bottom-color: #0284c7;
+      }
+      .tab-button:not(.active) {
+        border-bottom: 2px solid transparent;
+      }
+      .tab-button:hover:not(.active) {
+        color: #0369a1;
+        background-color: #f0f9ff;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 min-h-screen"
+  >
+    <header class="glass-effect sticky top-0 z-50 shadow-md">
+      <nav class="container mx-auto px-6 py-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="gradient-bg p-2 rounded-lg">
+              <svg
+                class="w-8 h-8 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                ></path>
+              </svg>
+            </div>
+            <div>
+              <h1
+                class="text-2xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent"
+              >
+                SellMate AI
+              </h1>
+              <p class="text-xs text-gray-500">
+                Intelligent E-commerce Analytics
+              </p>
+            </div>
+          </div>
+
+          <div class="hidden md:flex items-center space-x-8">
+            <a
+              href="/"
+              class="nav-link text-gray-700 hover:text-primary-600 font-medium py-2"
+            >
+              Dashboard
+            </a>
+            <a
+              href="/analyzer"
+              class="nav-link text-gray-700 hover:text-primary-600 font-medium py-2 active text-primary-600"
+            >
+              Profit Analyzer
+            </a>
+            <a
+              href="/content-generator"
+              class="nav-link text-gray-700 hover:text-primary-600 font-medium py-2"
+            >
+              Content Generator
+            </a>
+          </div>
+
+          <div class="hidden md:flex items-center space-x-4">
+            <button class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+              <svg
+                class="w-6 h-6 text-gray-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                ></path>
+              </svg>
+            </button>
+            <div
+              class="flex items-center space-x-3 pl-4 border-l border-gray-200"
+            >
+              <div
+                class="w-10 h-10 bg-gradient-to-br from-primary-500 to-accent-500 rounded-full flex items-center justify-center text-white font-semibold"
+              >
+                U
+              </div>
+            </div>
+          </div>
+
+          <button
+            id="mobileMenuBtn"
+            class="md:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <svg
+              class="w-6 h-6 text-gray-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 6h16M4 12h16M4 18h16"
+              ></path>
+            </svg>
+          </button>
+        </div>
+
+        <div id="mobileMenu" class="hidden md:hidden mt-4 pb-4 space-y-2">
+          <a
+            href="/"
+            class="block px-4 py-2 text-gray-700 hover:bg-primary-50 hover:text-primary-600 rounded-lg transition-colors"
+          >
+            Dashboard
+          </a>
+          <a
+            href="/analyzer"
+            class="block px-4 py-2 text-gray-700 hover:bg-primary-50 hover:text-primary-600 rounded-lg transition-colors"
+          >
+            Profit Analyzer
+          </a>
+          <a
+            href="/content-generator"
+            class="block px-4 py-2 text-gray-700 hover:bg-primary-50 hover:text-primary-600 rounded-lg transition-colors"
+          >
+            Content Generator
+          </a>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container mx-auto px-6 py-8">
+      <div id="flash-container" class="mb-6 space-y-3 max-w-6xl mx-auto"></div>
+
+      <div class="max-w-6xl mx-auto">
+        <div class="bg-white rounded-lg shadow-xl p-8 mb-6">
+          <h1 class="text-3xl font-bold text-gray-800 mb-2">
+            E-commerce Profit Analyzer
+          </h1>
+          <p class="text-gray-600 mb-6">
+            Upload your data files to generate a consolidated profit report.
+          </p>
+
+          <form
+            id="uploadForm"
+            action="/analyze"
+            method="POST"
+            enctype="multipart/form-data"
+            class="space-y-6"
+          >
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label
+                  for="order_files"
+                  class="block text-sm font-medium text-gray-700 mb-1"
+                  >Order Files</label
+                >
+                <input
+                  type="file"
+                  name="order_files"
+                  id="order_files"
+                  multiple
+                  required
+                  class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 border border-gray-300 rounded-md p-2"
+                />
+              </div>
+
+              <div>
+                <label
+                  for="payment_files"
+                  class="block text-sm font-medium text-gray-700 mb-1"
+                  >Payment Files</label
+                >
+                <input
+                  type="file"
+                  name="payment_files"
+                  id="payment_files"
+                  multiple
+                  required
+                  class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 border border-gray-300 rounded-md p-2"
+                />
+              </div>
+
+              <div>
+                <label
+                  for="return_files"
+                  class="block text-sm font-medium text-gray-700 mb-1"
+                  >Return Files</label
+                >
+                <input
+                  type="file"
+                  name="return_files"
+                  id="return_files"
+                  multiple
+                  required
+                  class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 border border-gray-300 rounded-md p-2"
+                />
+              </div>
+
+              <div>
+                <label
+                  for="cost_price_file"
+                  class="block text-sm font-medium text-gray-700 mb-1"
+                  >Cost Price File</label
+                >
+                <input
+                  type="file"
+                  name="cost_price_file"
+                  id="cost_price_file"
+                  required
+                  class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 border border-gray-300 rounded-md p-2"
+                />
+              </div>
+            </div>
+
+            <div class="pt-4 border-t border-gray-200">
+              <h3 class="text-lg font-semibold text-gray-800 mb-3">
+                Business Expenses
+              </h3>
+
+              <div id="expenseContainer" class="space-y-3 mb-4"></div>
+
+              <button
+                type="button"
+                id="addExpenseBtn"
+                class="px-4 py-2 bg-primary-100 text-primary-700 font-medium rounded-md hover:bg-primary-200 transition"
+              >
+                + Add Expense
+              </button>
+
+              <div class="mt-6">
+                <label
+                  for="packaging_cost"
+                  class="block text-sm font-medium text-gray-700"
+                  >Packaging Cost (Per Item)</label
+                >
+                <input
+                  type="number"
+                  name="packaging_cost"
+                  id="packaging_cost"
+                  step="0.01"
+                  required
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm p-2 border"
+                />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+              <button
+                type="button"
+                id="analyzeBtn"
+                class="flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-base font-medium text-white gradient-bg hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              >
+                <span id="analyzeText">Analyze Data</span>
+                <span
+                  id="analyzeLoader"
+                  class="loading ml-2"
+                  style="display: none"
+                ></span>
+              </button>
+              <button
+                type="button"
+                id="downloadBtn"
+                disabled
+                class="flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-base font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                <span id="downloadText">Download Full Report</span>
+                <span
+                  id="downloadLoader"
+                  class="loading ml-2"
+                  style="display: none"
+                ></span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div
+          id="summarySection"
+          class="bg-white rounded-lg shadow-xl p-8 mb-6"
+          style="display: none"
+        >
+          <h2 class="text-2xl font-bold text-gray-800 mb-6">
+            Profit Analysis Summary
+          </h2>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            <div class="lg:col-span-2">
+              <div
+                id="dynamicExpenseCards"
+                class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+              >
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <p class="text-sm text-gray-600 mb-1">Total Quantity</p>
+                  <p
+                    class="text-2xl font-bold text-blue-700"
+                    id="totalQuantity"
+                  >
+                    -
+                  </p>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                  <p class="text-sm text-gray-600 mb-1">Total Sales</p>
+                  <p
+                    class="text-2xl font-bold text-green-700"
+                    id="totalPayment"
+                  >
+                    -
+                  </p>
+                </div>
+                <div
+                  class="bg-orange-50 p-4 rounded-lg border border-orange-200"
+                >
+                  <p class="text-sm text-gray-600 mb-1">Total Cost</p>
+                  <p class="text-2xl font-bold text-orange-700" id="totalCost">
+                    -
+                  </p>
+                </div>
+                <div
+                  class="bg-purple-50 p-4 rounded-lg border border-purple-200"
+                >
+                  <p class="text-sm text-gray-600 mb-1">Total Packing</p>
+                  <p
+                    class="text-2xl font-bold text-purple-700"
+                    id="totalPacking"
+                  >
+                    -
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div class="lg:col-span-1">
+              <div
+                id="netProfitContainer"
+                class="bg-emerald-50 p-6 rounded-lg border-2 border-emerald-300 h-full flex flex-col justify-center shadow-inner"
+              >
+                <p
+                  id="netProfitTitle"
+                  class="text-lg text-gray-700 mb-2 font-semibold"
+                >
+                  Net Profit
+                </p>
+                <p class="text-4xl font-bold text-emerald-700" id="netProfit">
+                  -
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          id="tabSection"
+          class="bg-white rounded-lg shadow-xl p-8 mb-6"
+          style="display: none"
+        >
+          <div class="flex border-b border-gray-200 mb-6">
+            <button
+              id="ordersTab"
+              class="tab-button active flex items-center px-6 py-3 font-semibold text-primary-600 border-b-2 border-primary-600 transition-all"
+            >
+              <svg
+                class="w-5 h-5 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                ></path>
+              </svg>
+              Orders Analysis
+            </button>
+            <button
+              id="statesTab"
+              class="tab-button active flex items-center px-6 py-3 font-semibold text-primary-600 border-b-2 border-primary-600 transition-all"
+            >
+              <svg
+                class="w-5 h-5 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M3 3v18h18M3 9h18M3 15h18"
+                ></path>
+              </svg>
+              State Analysis
+            </button>
+            <button
+              id="returnsTab"
+              class="tab-button active flex items-center px-6 py-3 font-semibold text-primary-600 border-b-2 border-primary-600 transition-all"
+            >
+              <svg
+                class="w-5 h-5 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+                ></path>
+              </svg>
+              Returns Analysis
+            </button>
+          </div>
+
+          <div id="ordersContent" class="tab-content" style="display: none">
+            <div class="flex items-center justify-between mb-6">
+              <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+                <svg
+                  class="w-7 h-7 mr-2 text-accent-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                  ></path>
+                </svg>
+                Top 10 Best-Selling SKUs
+              </h2>
+              <div
+                class="flex items-center space-x-2 bg-accent-50 px-4 py-2 rounded-lg"
+              >
+                <svg
+                  class="w-5 h-5 text-accent-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+                  ></path>
+                </svg>
+                <span class="text-sm font-medium text-accent-700"
+                  >Top Performers</span
+                >
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gradient-to-r from-primary-50 to-accent-50">
+                  <tr>
+                    <th
+                      class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
+                    >
+                      Rank
+                    </th>
+                    <th
+                      class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
+                    >
+                      SKU
+                    </th>
+                    <th
+                      class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
+                    >
+                      Total Quantity
+                    </th>
+                  </tr>
+                </thead>
+                <tbody
+                  id="top10TableBody"
+                  class="bg-white divide-y divide-gray-200"
+                ></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="statesContent" class="tab-content" style="display: none">
+            <div class="flex items-center justify-between mb-6">
+              <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+                <svg
+                  class="w-7 h-7 mr-2 text-primary-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M3 3v18h18M3 9h18M3 15h18"
+                  ></path>
+                </svg>
+                Top 10 States by Order Quantity
+              </h2>
+            </div>
+            <div
+              class="bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-lg border border-gray-200 shadow-inner"
+            >
+              <canvas id="stateOrdersChart" height="100"></canvas>
+            </div>
+          </div>
+
+          <div id="returnsContent" class="tab-content" style="display: none">
+            <div class="flex items-center justify-between mb-6">
+              <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+                <svg
+                  class="w-7 h-7 mr-2 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+                  ></path>
+                </svg>
+                Top 10 Returned SKUs
+              </h2>
+              <div
+                class="flex items-center space-x-2 bg-red-50 px-4 py-2 rounded-lg"
+              >
+                <svg
+                  class="w-5 h-5 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  ></path>
+                </svg>
+                <span class="text-sm font-medium text-red-700"
+                  >High Return Items</span
+                >
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gradient-to-r from-red-50 to-orange-50">
+                  <tr>
+                    <th
+                      class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
+                    >
+                      Rank
+                    </th>
+                    <th
+                      class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
+                    >
+                      SKU
+                    </th>
+                    <th
+                      class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
+                    >
+                      Quantity Returned
+                    </th>
+                    <th
+                      class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
+                    >
+                      Return Category
+                    </th>
+                  </tr>
+                </thead>
+                <tbody
+                  id="top10ReturnsTableBody"
+                  class="bg-white divide-y divide-gray-200"
+                ></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="bg-white border-t border-gray-200 mt-16">
+      <div class="container mx-auto px-6 py-8">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div>
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+              SellMate AI
+            </h3>
+            <p class="text-gray-600 text-sm leading-relaxed">
+              Empowering e-commerce sellers with intelligent analytics and
+              automated reporting solutions.
+            </p>
+          </div>
+
+          <div>
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+              Quick Links
+            </h3>
+            <ul class="space-y-2">
+              <li>
+                <a
+                  href="/"
+                  class="text-gray-600 hover:text-primary-600 text-sm transition-colors"
+                  >Dashboard</a
+                >
+              </li>
+              <li>
+                <a
+                  href="/analyzer"
+                  class="text-gray-600 hover:text-primary-600 text-sm transition-colors"
+                  >Analytics</a
+                >
+              </li>
+              <li>
+                <a
+                  href="#"
+                  class="text-gray-600 hover:text-primary-600 text-sm transition-colors"
+                  >Reports</a
+                >
+              </li>
+              <li>
+                <a
+                  href="#"
+                  class="text-gray-600 hover:text-primary-600 text-sm transition-colors"
+                  >Documentation</a
+                >
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Support</h3>
+            <ul class="space-y-2">
+              <li>
+                <a
+                  href="#"
+                  class="text-gray-600 hover:text-primary-600 text-sm transition-colors"
+                  >Help Center</a
+                >
+              </li>
+              <li>
+                <a
+                  href="#"
+                  class="text-gray-600 hover:text-primary-600 text-sm transition-colors"
+                  >Contact Us</a
+                >
+              </li>
+              <li>
+                <a
+                  href="#"
+                  class="text-gray-600 hover:text-primary-600 text-sm transition-colors"
+                  >FAQs</a
+                >
+              </li>
+              <li>
+                <a
+                  href="#"
+                  class="text-gray-600 hover:text-primary-600 text-sm transition-colors"
+                  >Privacy Policy</a
+                >
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Connect</h3>
+            <div class="flex space-x-3">
+              <a
+                href="#"
+                class="w-10 h-10 bg-gray-100 hover:bg-primary-100 rounded-lg flex items-center justify-center transition-colors"
+              >
+                <svg
+                  class="w-5 h-5 text-gray-600"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"
+                  />
+                </svg>
+              </a>
+              <a
+                href="#"
+                class="w-10 h-10 bg-gray-100 hover:bg-primary-100 rounded-lg flex items-center justify-center transition-colors"
+              >
+                <svg
+                  class="w-5 h-5 text-gray-600"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"
+                  />
+                </svg>
+              </a>
+              <a
+                href="#"
+                class="w-10 h-10 bg-gray-100 hover:bg-primary-100 rounded-lg flex items-center justify-center transition-colors"
+              >
+                <svg
+                  class="w-5 h-5 text-gray-600"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"
+                  />
+                </svg>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="border-t border-gray-200 mt-8 pt-8 text-center">
+          <p class="text-gray-600 text-sm">
+            © 2025 SellMate AI. All rights reserved. Built with ❤️ for
+            e-commerce sellers.
+          </p>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      // This listener ensures all HTML is loaded before we try to find elements
+      document.addEventListener("DOMContentLoaded", function () {
+        let currentFileName = null;
+        let stateOrdersChart = null;
+
+        // --- 1. DECLARE ALL ELEMENTS ---
+        // Main elements
+        const mobileMenuBtn = document.getElementById("mobileMenuBtn");
+        const mobileMenu = document.getElementById("mobileMenu");
+        const analyzeBtn = document.getElementById("analyzeBtn");
+        const downloadBtn = document.getElementById("downloadBtn");
+        const flashContainer = document.getElementById("flash-container");
+
+        // Tab elements
+        const ordersTab = document.getElementById("ordersTab");
+        const returnsTab = document.getElementById("returnsTab");
+        const ordersContent = document.getElementById("ordersContent");
+        const returnsContent = document.getElementById("returnsContent");
+        const statesTab = document.getElementById("statesTab");
+        const statesContent = document.getElementById("statesContent");
+
+        // --- 2. DEFINE ALL FUNCTIONS ---
+
+        // Mobile menu toggle
+        function toggleMobileMenu() {
+          mobileMenu.classList.toggle("hidden");
+        }
+
+        // Show a flash message
+        function showFlash(message, category) {
+          const flashDiv = document.createElement("div");
+          flashDiv.className = `flash ${category}`;
+          flashDiv.setAttribute("role", "alert");
+          flashDiv.innerHTML = `
+                  <div class="flex items-center justify-between">
+                      <span>${message}</span>
+                      <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-current opacity-50 hover:opacity-100">
+                          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                          </svg>
+                      </button>
+                  </div>`;
+          flashContainer.appendChild(flashDiv);
+          setTimeout(() => {
+            flashDiv.style.transition = "opacity 0.5s";
+            flashDiv.style.opacity = "0";
+            setTimeout(() => flashDiv.remove(), 500);
+          }, 5000);
+        }
+
+        // Format currency
+        function formatCurrency(value) {
+          return (
+            "₹" +
+            parseFloat(value).toLocaleString("en-IN", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })
+          );
+        }
+
+        // Format number
+        function formatNumber(value) {
+          return parseFloat(value).toLocaleString("en-IN");
+        }
+
+        // Handle the main 'Analyze' button click
+        async function handleAnalyzeClick() {
+          const form = document.getElementById("uploadForm");
+          const formData = new FormData(form); // Get all standard data first // --- Handle Dynamic Expenses Manually ---
+
+          const rows = document.querySelectorAll("#expenseContainer div.grid");
+          rows.forEach((row, index) => {
+            // Find the inputs by their *original* names
+            const nameInput = row.querySelector(`input[name^='expense_name_']`);
+            const amountInput = row.querySelector(
+              `input[name^='expense_amount_']`
+            ); // Get their values
+
+            const expenseName = nameInput.value
+              .trim()
+              .toLowerCase()
+              .replace(/\s+/g, "_");
+            const expenseAmount = amountInput.value; // Remove the temporary fields from FormData
+
+            formData.delete(nameInput.name);
+            formData.delete(amountInput.name); // Add the correctly formatted field that Flask expects
+
+            if (expenseName && expenseAmount) {
+              formData.append(`expense_${expenseName}`, expenseAmount);
+            }
+          }); // --- End of Manual Handling ---
+
+          document.getElementById("analyzeText").textContent = "Analyzing...";
+          document.getElementById("analyzeLoader").style.display =
+            "inline-block";
+          analyzeBtn.disabled = true;
+
+          try {
+            const response = await fetch("/analyze", {
+              method: "POST",
+              body: formData,
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+              currentFileName = result.filename;
+
+              // --- Render State Orders Chart ---
+              if (result.top_states && result.top_states.length > 0) {
+                const ctx = document
+                  .getElementById("stateOrdersChart")
+                  .getContext("2d");
+
+                // Destroy previous chart instance if any
+                if (stateOrdersChart) {
+                  stateOrdersChart.destroy();
+                }
+
+                const stateLabels = result.top_states.map((s) => s.state);
+                const stateQuantities = result.top_states.map(
+                  (s) => s.total_orders
+                );
+
+                stateOrdersChart = new Chart(ctx, {
+                  type: "bar",
+                  data: {
+                    labels: stateLabels,
+                    datasets: [
+                      {
+                        label: "Total Orders by State",
+                        data: stateQuantities,
+                        borderRadius: 8,
+                        backgroundColor: stateLabels.map(() => {
+                          const gradient = ctx.createLinearGradient(
+                            0,
+                            0,
+                            0,
+                            400
+                          );
+                          gradient.addColorStop(0, "rgba(14,165,233,0.8)");
+                          gradient.addColorStop(1, "rgba(217,70,239,0.8)");
+                          return gradient;
+                        }),
+                      },
+                    ],
+                  },
+                  options: {
+                    responsive: true,
+                    plugins: {
+                      legend: { display: false },
+                      title: {
+                        display: false,
+                      },
+                    },
+                    scales: {
+                      x: {
+                        title: {
+                          display: true,
+                          text: "State",
+                          color: "#374151",
+                        },
+                        ticks: { color: "#374151" },
+                      },
+                      y: {
+                        title: {
+                          display: true,
+                          text: "Total Orders",
+                          color: "#374151",
+                        },
+                        beginAtZero: true,
+                        ticks: { color: "#374151" },
+                      },
+                    },
+                  },
+                });
+              }
+
+              // --- Populate Summary Cards ---
+              document.getElementById("totalQuantity").textContent =
+                formatNumber(result.summary.total_quantity);
+              document.getElementById("totalPayment").textContent =
+                formatCurrency(result.summary.total_payment);
+              document.getElementById("totalCost").textContent = formatCurrency(
+                result.summary.total_cost
+              );
+              document.getElementById("totalPacking").textContent =
+                formatCurrency(result.summary.total_packing);
+              // --- Populate Net Profit/Loss Card ---
+              const netProfitValue = result.summary.net_profit;
+              const profitContainer =
+                document.getElementById("netProfitContainer");
+              const profitTitle = document.getElementById("netProfitTitle");
+              const profitText = document.getElementById("netProfit");
+
+              // Set the value
+              profitText.textContent = formatCurrency(netProfitValue);
+
+              if (netProfitValue < 0) {
+                // It's a LOSS
+                profitTitle.textContent = "Net Loss";
+                // Remove green, add red
+                profitContainer.classList.remove(
+                  "bg-emerald-50",
+                  "border-emerald-300"
+                );
+                profitContainer.classList.add("bg-red-50", "border-red-300");
+                profitText.classList.remove("text-emerald-700");
+                profitText.classList.add("text-red-700");
+              } else {
+                profitTitle.textContent = "Net Profit";
+                profitContainer.classList.remove("bg-red-50", "border-red-300");
+                profitContainer.classList.add(
+                  "bg-emerald-50",
+                  "border-emerald-300"
+                );
+                profitText.classList.remove("text-red-700");
+                profitText.classList.add("text-emerald-700");
+              }
+
+              // --- Render Dynamic Expenses ---
+              const expenseCardsContainer = document.getElementById(
+                "dynamicExpenseCards"
+              );
+              if (expenseCardsContainer) {
+                // [START] JAVASCRIPT FIX: This line is DELETED
+                // expenseCardsContainer.innerHTML = "";
+                // [END] JAVASCRIPT FIX
+                document
+                  .querySelectorAll(".dynamic-expense-card")
+                  .forEach((card) => card.remove());
+
+                // color palette (Tailwind soft tones)
+                const colorClasses = [
+                  "bg-yellow-50 border-yellow-200 text-yellow-800",
+                  "bg-amber-50 border-amber-200 text-amber-800",
+                  "bg-orange-50 border-orange-200 text-orange-800",
+                  "bg-rose-50 border-rose-200 text-rose-800",
+                  "bg-lime-50 border-lime-200 text-lime-800",
+                  "bg-teal-50 border-teal-200 text-teal-800",
+                ];
+
+                let colorIndex = 0;
+
+                Object.keys(result.summary).forEach((key) => {
+                  if (key.startsWith("expense_")) {
+                    const label = key
+                      .replace("expense_", "")
+                      .replace(/_/g, " ")
+                      .split(" ")
+                      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                      .join(" ");
+
+                    // cycle colors
+                    const colorClass =
+                      colorClasses[colorIndex % colorClasses.length];
+                    colorIndex++;
+
+                    const card = document.createElement("div");
+
+                    // --- MODIFIED ---
+                    // Added more classes to match the static cards
+                    card.className = `p-4 rounded-lg border ${colorClass} shadow-sm dynamic-expense-card`;
+
+                    card.innerHTML = `
+                              <p class="text-sm text-gray-600 mb-1">${label}</p>
+                              <p class="text-2xl font-bold">${formatCurrency(
+                                result.summary[key]
+                              )}</p>
+                            `;
+                    expenseCardsContainer.appendChild(card);
+                  }
+                });
+              }
+
+              // --- Populate Top 10 Orders Table ---
+              const tableBody = document.getElementById("top10TableBody");
+              tableBody.innerHTML = "";
+              if (result.top_10_skus && result.top_10_skus.length > 0) {
+                result.top_10_skus.forEach((item) => {
+                  const row = document.createElement("tr");
+                  row.className = "hover:bg-gray-50 transition-colors";
+                  let rankBadge = "";
+                  if (item.Rank === 1)
+                    rankBadge =
+                      '<span class="inline-flex items-center justify-center w-8 h-8 bg-yellow-100 text-yellow-800 rounded-full font-bold text-lg">🥇</span>';
+                  else if (item.Rank === 2)
+                    rankBadge =
+                      '<span class="inline-flex items-center justify-center w-8 h-8 bg-gray-200 text-gray-700 rounded-full font-bold text-lg">🥈</span>';
+                  else if (item.Rank === 3)
+                    rankBadge =
+                      '<span class="inline-flex items-center justify-center w-8 h-8 bg-orange-100 text-orange-700 rounded-full font-bold text-lg">🥉</span>';
+                  else
+                    rankBadge = `<span class="inline-flex items-center justify-center w-8 h-8 bg-gray-100 text-gray-600 rounded-full font-semibold">${item.Rank}</span>`;
+                  row.innerHTML = `
+                                      <td class="px-6 py-4 whitespace-nowrap">${rankBadge}</td>
+                                      <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">${
+                                        item.sku
+                                      }</div></td>
+                                      <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-bold text-primary-600">${formatNumber(
+                                        item.quantity
+                                      )}</div></td>`;
+                  tableBody.appendChild(row);
+                });
+              }
+
+              // --- Populate Top 10 Returns Table ---
+              const returnsTableBody = document.getElementById(
+                "top10ReturnsTableBody"
+              );
+              returnsTableBody.innerHTML = "";
+              if (result.top_10_returns && result.top_10_returns.length > 0) {
+                result.top_10_returns.forEach((item) => {
+                  const row = document.createElement("tr");
+                  row.className = "hover:bg-gray-50 transition-colors";
+                  let rankBadge = `<span class="inline-flex items-center justify-center w-8 h-8 bg-red-100 text-red-600 rounded-full font-semibold">${item.Rank}</span>`;
+                  row.innerHTML = `
+                                      <td class="px-6 py-4 whitespace-nowrap">${rankBadge}</td>
+                                      <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">${
+                                        item.sku
+                                      }</div></td>
+                                      <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-bold text-red-600">${formatNumber(
+                                        item.quantity
+                                      )}</div></td>
+                                      <td class="px-6 py-4 whitespace-nowrap"><span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">${
+                                        item.return_category ||
+                                        item.category ||
+                                        "N/A"
+                                      }</span></td>`;
+                  returnsTableBody.appendChild(row);
+                });
+              }
+
+              // --- Show results ---
+              document.getElementById("summarySection").style.display = "block";
+              document.getElementById("tabSection").style.display = "block";
+              // **This is new:** Default to showing the 'orders' tab
+              switchTabs("orders");
+
+              document.getElementById("downloadBtn").disabled = false;
+              showFlash(
+                "Analysis complete! Summary is displayed below.",
+                "success"
+              );
+              setTimeout(() => {
+                document
+                  .getElementById("summarySection")
+                  .scrollIntoView({ behavior: "smooth" });
+              }, 100);
+            } else {
+              showFlash("Error: " + result.error, "error");
+            }
+          } catch (error) {
+            showFlash("An error occurred: " + error.message, "error");
+          } finally {
+            document.getElementById("analyzeText").textContent = "Analyze Data";
+            document.getElementById("analyzeLoader").style.display = "none";
+            analyzeBtn.disabled = false;
+          }
+        }
+
+        // Handle the 'Download' button click
+        async function handleDownloadClick() {
+          if (!currentFileName) {
+            showFlash("Please analyze the data first", "error");
+            return;
+          }
+
+          document.getElementById("downloadText").textContent =
+            "Downloading...";
+          document.getElementById("downloadLoader").style.display =
+            "inline-block";
+          downloadBtn.disabled = true;
+
+          try {
+            const response = await fetch("/download/" + currentFileName);
+            if (response.ok) {
+              const blob = await response.blob();
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = currentFileName;
+              document.body.appendChild(a);
+              a.click();
+              window.URL.revokeObjectURL(url);
+              document.body.removeChild(a);
+              showFlash("Report downloaded successfully!", "success");
+            } else {
+              showFlash("Error downloading file", "error");
+            }
+          } catch (error) {
+            showFlash("An error occurred: " + error.message, "error");
+          } finally {
+            document.getElementById("downloadText").textContent =
+              "Download Full Report";
+            document.getElementById("downloadLoader").style.display = "none";
+            downloadBtn.disabled = false;
+          }
+        }
+
+        // Handle Tab Switching
+        function switchTabs(tab) {
+          // Reset all buttons
+          [ordersTab, returnsTab, statesTab].forEach((btn) =>
+            btn.classList.remove(
+              "active",
+              "text-primary-600",
+              "border-primary-600"
+            )
+          );
+
+          // Hide all contents
+          [ordersContent, returnsContent, statesContent].forEach(
+            (el) => (el.style.display = "none")
+          );
+
+          // Activate selected tab
+          if (tab === "orders") {
+            ordersTab.classList.add(
+              "active",
+              "text-primary-600",
+              "border-primary-600"
+            );
+            ordersContent.style.display = "block";
+          } else if (tab === "returns") {
+            returnsTab.classList.add(
+              "active",
+              "text-primary-600",
+              "border-primary-600"
+            );
+            returnsContent.style.display = "block";
+          } else if (tab === "states") {
+            statesTab.classList.add(
+              "active",
+              "text-primary-600",
+              "border-primary-600"
+            );
+            statesContent.style.display = "block";
+          }
+        }
+
+        // --- DYNAMIC EXPENSE INPUT HANDLING ---
+        const expenseContainer = document.getElementById("expenseContainer");
+        const addExpenseBtn = document.getElementById("addExpenseBtn");
+
+        // Counter to create unique names
+        let expenseCount = 0;
+
+        // Function to add a new expense row
+        function addExpenseRow(name = "", amount = "") {
+          expenseCount++;
+          const row = document.createElement("div");
+          row.className = "grid grid-cols-2 gap-4 items-center";
+
+          row.innerHTML = `
+          <input
+            type="text"
+            name="expense_name_${expenseCount}"
+            placeholder="Expense Name (e.g., Office Rent)"
+            value="${name}"
+            required
+            class="rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm p-2 border"
+          />
+          <div class="flex items-center space-x-2">
+            <input
+              type="number"
+              name="expense_amount_${expenseCount}"
+              placeholder="Amount (₹)"
+              value="${amount}"
+              step="0.01"
+              required
+              class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm p-2 border"
+            />
+            <button
+              type="button"
+              class="remove-expense text-red-500 hover:text-red-700 text-lg font-bold"
+              title="Remove"
+            >
+              ×
+            </button>
+          </div>
+        `;
+
+          expenseContainer.appendChild(row);
+
+          // Attach remove handler
+          row.querySelector(".remove-expense").addEventListener("click", () => {
+            row.remove();
+          });
+        }
+
+        // Add first default row
+        addExpenseRow();
+
+        // Add new row on button click
+        addExpenseBtn.addEventListener("click", () => addExpenseRow());
+
+        // Before submitting, rename expense fields to match backend expectation
+        document.getElementById("uploadForm").addEventListener("submit", () => {
+          const rows = expenseContainer.querySelectorAll("div.grid");
+          rows.forEach((row, index) => {
+            const nameInput = row.querySelector(`input[name^='expense_name_']`);
+            const amountInput = row.querySelector(
+              `input[name^='expense_amount_']`
+            );
+
+            const expenseName = nameInput.value
+              .trim()
+              .toLowerCase()
+              .replace(/\s+/g, "_");
+            amountInput.name = `expense_${expenseName}`; // Flask will parse this
+            nameInput.removeAttribute("name"); // remove unused field
+          });
+        });
+
+        // --- 3. ATTACH ALL EVENT LISTENERS ---
+        mobileMenuBtn.addEventListener("click", toggleMobileMenu);
+        analyzeBtn.addEventListener("click", handleAnalyzeClick);
+        downloadBtn.addEventListener("click", handleDownloadClick);
+
+        // Tab listeners
+        ordersTab.addEventListener("click", () => switchTabs("orders"));
+        returnsTab.addEventListener("click", () => switchTabs("returns"));
+        statesTab.addEventListener("click", () => switchTabs("states"));
+      });
+    </script>
+  </body>
+</html>

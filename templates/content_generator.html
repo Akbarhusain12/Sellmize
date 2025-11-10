@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Product Content Generator - SellMate AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: {
+                50: '#f0f9ff',
+                100: '#e0f2fe',
+                500: '#0ea5e9',
+                600: '#0284c7',
+                700: '#0369a1'
+              },
+              accent: {
+                50: '#fdf4ff',
+                100: '#fae8ff',
+                500: '#d946ef',
+                600: '#c026d3',
+                700: '#a21caf'
+              },
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+      
+      body {
+        font-family: 'Inter', sans-serif;
+      }
+      .gradient-bg {
+        background: linear-gradient(135deg, #0ea5e9, #7dd3fc, #d946ef);
+      }
+      .glass-effect {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+      }
+      .loading {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: #fff;
+        animation: spin 1s ease-in-out infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .nav-link {
+        position: relative;
+        transition: all 0.3s ease;
+      }
+      .nav-link::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 0;
+        height: 2px;
+        background: linear-gradient(90deg, #0ea5e9, #d946ef);
+        transition: width 0.3s ease;
+      }
+      .nav-link:hover::after,
+      .nav-link.active::after {
+        width: 100%;
+      }
+    </style>
+  </head>
+
+  <body class="bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 min-h-screen">
+    <!-- Header with Navigation -->
+    <header class="glass-effect sticky top-0 z-50 shadow-md">
+      <nav class="container mx-auto px-6 py-4">
+        <div class="flex items-center justify-between">
+          <!-- Logo and Brand -->
+          <div class="flex items-center space-x-3">
+            <div class="gradient-bg p-2 rounded-lg">
+              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <div>
+              <h1 class="text-2xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent">
+                SellMate AI
+              </h1>
+              <p class="text-xs text-gray-500">AI Product Content Generator</p>
+            </div>
+          </div>
+
+          <!-- Desktop Navigation -->
+          <div class="hidden md:flex items-center space-x-8">
+            <a href="/" class="nav-link text-gray-700 hover:text-primary-600 font-medium py-2">
+              Dashboard
+            </a>
+            <a href="/analyzer" class="nav-link text-gray-700 hover:text-primary-600 font-medium py-2">
+              Profit Analyzer
+            </a>
+
+            <a href="/content-generator" class="nav-link text-gray-700 hover:text-primary-600 font-medium py-2 active text-primary-600">
+              Content Generator
+            </a>
+          </div>
+
+          <!-- User Profile -->
+          <div class="hidden md:flex items-center space-x-4">
+            <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-accent-500 rounded-full flex items-center justify-center text-white font-semibold">
+              U
+            </div>
+          </div>
+
+          <!-- Mobile Menu Button -->
+          <button id="mobileMenuBtn" class="md:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Mobile Navigation -->
+        <div id="mobileMenu" class="hidden md:hidden mt-4 pb-4 space-y-2">
+          <a href="/" class="block px-4 py-2 text-gray-700 hover:bg-primary-50 hover:text-primary-600 rounded-lg transition-colors">
+            Dashboard
+          </a>
+          <a href="/analyzer" class="block px-4 py-2 text-gray-700 hover:bg-primary-50 hover:text-primary-600 rounded-lg transition-colors">
+            Profit Analyzer
+          </a>
+          <a href="/content-generator" class="block px-4 py-2 text-gray-700 hover:bg-primary-50 hover:text-primary-600 rounded-lg transition-colors bg-primary-50 text-primary-600">
+            Content Generator
+          </a>
+        </div>
+      </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-10 max-w-5xl">
+      <div class="bg-white shadow-xl rounded-2xl p-8">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-3xl font-bold text-gray-800 flex items-center gap-2">
+            🪄 Generate Product Content
+          </h2>
+          <!-- <div class="hidden md:block">
+            <div class="flex items-center space-x-2 bg-accent-50 px-4 py-2 rounded-lg">
+              <svg class="w-5 h-5 text-accent-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+              </svg>
+              <span class="text-sm font-medium text-accent-700">AI-Powered</span>
+            </div>
+          </div> -->
+        </div>
+
+        <!-- Input Form -->
+        <form id="contentForm" class="space-y-5">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-gray-700 font-semibold mb-2">
+                Brand Name <span class="text-red-500">*</span>
+              </label>
+              <input type="text" name="Brand" required
+                class="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all" />
+            </div>
+
+            <div>
+              <label class="block text-gray-700 font-semibold mb-2">
+                Product Type <span class="text-red-500">*</span>
+              </label>
+              <input type="text" name="Product Type" placeholder="e.g., T-Shirt" required
+                class="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all" />
+            </div>
+
+            <div>
+              <label class="block text-gray-700 font-semibold mb-2">Color</label>
+              <input type="text" name="Color" placeholder="e.g., Navy Blue"
+                class="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all" />
+            </div>
+
+            <div>
+              <label class="block text-gray-700 font-semibold mb-2">Size</label>
+              <input type="text" name="Size" placeholder="e.g., M"
+                class="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all" />
+            </div>
+
+            <div>
+              <label class="block text-gray-700 font-semibold mb-2">Material</label>
+              <input type="text" name="Material" placeholder="e.g., Cotton"
+                class="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all" />
+            </div>
+
+            <div>
+              <label class="block text-gray-700 font-semibold mb-2">Category</label>
+              <input type="text" name="Category" placeholder="e.g., Men's Apparel"
+                class="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-gray-700 font-semibold mb-2">Special Features</label>
+            <textarea name="Special Features" rows="3" placeholder="e.g., Soft fabric, breathable, graphic print, quick-dry technology"
+              class="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"></textarea>
+          </div>
+
+          <button type="submit" id="generateBtn"
+            class="gradient-bg text-white px-8 py-4 rounded-lg font-semibold shadow-lg hover:opacity-90 transition-all flex items-center justify-center w-full sm:w-auto text-lg">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+            <span id="btnText">Generate Content</span>
+            <span id="btnLoader" class="loading ml-2" style="display:none"></span>
+          </button>
+        </form>
+
+        <!-- Result Section -->
+        <div id="resultContainer" class="mt-10 hidden">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-2xl font-semibold text-gray-800">✨ Generated Product Content</h3>
+            <button id="copyAllBtn" class="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-all text-sm font-medium flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
+              </svg>
+              Copy All
+            </button>
+          </div>
+
+          <div class="bg-gradient-to-br from-gray-50 to-blue-50 p-6 rounded-xl border-2 border-gray-200 shadow-sm space-y-6">
+            <div class="bg-white p-4 rounded-lg">
+              <h4 class="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-2">
+                🧾 Title
+              </h4>
+              <p id="generatedTitle" class="text-gray-700 text-lg font-medium"></p>
+            </div>
+
+            <div class="bg-white p-4 rounded-lg">
+              <h4 class="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-2">
+                📝 Description
+              </h4>
+              <p id="generatedDescription" class="text-gray-700 leading-relaxed whitespace-pre-line"></p>
+            </div>
+
+            <div class="bg-white p-4 rounded-lg">
+              <h4 class="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-2">
+                📌 Bullet Points
+              </h4>
+              <ul id="generatedBullets" class="list-disc list-inside text-gray-700 space-y-2"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 mt-16">
+      <div class="container mx-auto px-6 py-8 text-center">
+        <p class="text-gray-600 text-sm">
+          © 2025 SellMate AI. All rights reserved. Built with ❤️ for e-commerce sellers.
+        </p>
+      </div>
+    </footer>
+
+    <script>
+      // Mobile menu toggle
+      document.getElementById('mobileMenuBtn').addEventListener('click', function() {
+        const menu = document.getElementById('mobileMenu');
+        menu.classList.toggle('hidden');
+      });
+
+      // Form submission
+      document.getElementById("contentForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const form = e.target;
+        const generateBtn = document.getElementById("generateBtn");
+        const btnText = document.getElementById("btnText");
+        const btnLoader = document.getElementById("btnLoader");
+
+        const resultContainer = document.getElementById("resultContainer");
+        const titleElem = document.getElementById("generatedTitle");
+        const descElem = document.getElementById("generatedDescription");
+        const bulletsElem = document.getElementById("generatedBullets");
+
+        btnText.textContent = "Generating...";
+        btnLoader.style.display = "inline-block";
+        generateBtn.disabled = true;
+
+        const formData = new FormData(form);
+        const attributes = Object.fromEntries(formData.entries());
+
+        try {
+          const res = await fetch("/generate_content", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ attributes }),
+          });
+
+          const data = await res.json();
+
+          if (data.success && data.content) {
+            titleElem.textContent = data.content.title || "—";
+            descElem.textContent = data.content.description || "—";
+            bulletsElem.innerHTML = "";
+            (data.content.bullet_points || []).forEach((point) => {
+              const li = document.createElement("li");
+              li.textContent = point;
+              bulletsElem.appendChild(li);
+            });
+
+            resultContainer.classList.remove("hidden");
+            
+            // Scroll to results
+            setTimeout(() => {
+              resultContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+          } else {
+            titleElem.textContent = "⚠️ " + (data.error || "Failed to generate content");
+            descElem.textContent = data.raw_output || "";
+            bulletsElem.innerHTML = "";
+            resultContainer.classList.remove("hidden");
+          }
+        } catch (err) {
+          titleElem.textContent = "❌ Error: " + err.message;
+          descElem.textContent = "";
+          bulletsElem.innerHTML = "";
+          resultContainer.classList.remove("hidden");
+        } finally {
+          btnText.textContent = "Generate Content";
+          btnLoader.style.display = "none";
+          generateBtn.disabled = false;
+        }
+      });
+
+      // Copy all content
+      document.addEventListener('click', function(e) {
+        if (e.target.id === 'copyAllBtn' || e.target.closest('#copyAllBtn')) {
+          const title = document.getElementById('generatedTitle').textContent;
+          const desc = document.getElementById('generatedDescription').textContent;
+          const bullets = Array.from(document.getElementById('generatedBullets').children)
+            .map(li => li.textContent).join('\n');
+          
+          const allContent = `Title:\n${title}\n\nDescription:\n${desc}\n\nBullet Points:\n${bullets}`;
+          
+          navigator.clipboard.writeText(allContent).then(() => {
+            const btn = document.getElementById('copyAllBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copied!';
+            setTimeout(() => {
+              btn.innerHTML = originalText;
+            }, 2000);
+          });
+        }
+      });
+    </script>
+  </body>
+</html>
