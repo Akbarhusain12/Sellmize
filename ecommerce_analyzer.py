@@ -108,7 +108,7 @@ def find_column(df, possible_names):
 
 
 def process_data(order_files, payment_files, return_files, cost_price_file,
-                 packaging_cost, dynamic_expenses, output_folder):
+                 dynamic_expenses, output_folder):
 
 
     # --- 1. Load Data ---
@@ -362,8 +362,6 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     merged_data.rename(columns={'Return type': 'Status'}, inplace=True)
     merged_data.drop(columns=['Order ID'], inplace=True, errors='ignore')
 
-    # --- 7. Add Dynamic Packaging & Fees ---
-    merged_data['Packing'] = packaging_cost 
 
     amz_fees_col = find_column(Cost_price, ['Amz Fees', 'amz fees', 'amazon fees', 'fees'])
     if amz_fees_col:
@@ -378,7 +376,6 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     total_payment = filtered_na['total'].sum()
     total_cost = filtered_na['Total Cost'].sum()
 
-    total_packing = merged_data['Packing'].sum()
     total_amz_fees = merged_data['Amz Fees'].sum()
 
     # --- 9. Dynamic Expenses ---
@@ -387,14 +384,13 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         raise Exception("❌ 'dynamic_expenses' must be a dictionary, e.g. {'Ad Cost': 1000, 'Office Rent': 2000}")
 
     total_expense = sum(dynamic_expenses.values())
-    net_profit = total_payment - (total_cost + total_packing + total_expense)
+    net_profit = total_payment - (total_cost + total_expense)
 
     # --- 10. Prepare dynamic summary table ---
     summary_rows = [
         ('Total Quantity', total_quantity),
         ('Total Payment', total_payment),
         ('Total Cost', total_cost),
-        ('Total Packing', total_packing),
         ('Total Amz Fees', total_amz_fees),
     ]
 
@@ -411,7 +407,7 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     cols = [
         'amazon-order-id', 'order_date', 'sku', 
         'quantity', 'total', 'Product Cost', 'Total Cost', 
-        'Status', 'ship_state', 'Packing', 'Amz Fees'
+        'Status', 'ship_state', 'Amz Fees'
     ]
     final_cols = [col for col in cols if col in merged_data.columns]
     merged_data = merged_data[final_cols]

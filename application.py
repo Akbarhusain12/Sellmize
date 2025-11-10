@@ -168,7 +168,6 @@ def analyze():
 
         # --- 2. Get Dynamic Expenses ---
         dynamic_expenses = {}
-        packaging_cost = 0  # Default
 
         # Loop through all form fields dynamically
         for key, value in request.form.items():
@@ -180,11 +179,7 @@ def analyze():
                     dynamic_expenses[expense_name] = expense_value
                 except ValueError:
                     return jsonify({'success': False, 'error': f'Invalid amount for {expense_name}.'}), 400
-            elif key == "packaging_cost":
-                try:
-                    packaging_cost = float(value)
-                except ValueError:
-                    return jsonify({'success': False, 'error': 'Invalid packaging cost value.'}), 400
+           
 
         # Ensure at least one expense exists
         if not dynamic_expenses:
@@ -226,7 +221,6 @@ def analyze():
                 payment_files=payment_paths,
                 return_files=return_paths,
                 cost_price_file=cost_price_path,
-                packaging_cost=packaging_cost,
                 dynamic_expenses=dynamic_expenses,
                 output_folder=app.config['OUTPUT_FOLDER']
             )
@@ -280,7 +274,6 @@ def analyze():
                     'Total Quantity': 'total_quantity',
                     'Total Payment': 'total_payment',
                     'Total Cost': 'total_cost',
-                    'Total Packing': 'total_packing',
                     'Total Amz Fees': 'total_amz_fees',
                     'Net Profit': 'net_profit'
                 }
@@ -356,7 +349,6 @@ def process_files():
         try:
             advertisement_cost = float(request.form.get('advertisement_cost', 0))
             stitching_cost = float(request.form.get('stitching_cost', 0))
-            packaging_cost = float(request.form.get('packing_cost', 0))
         except ValueError:
             flash('Error: Costs must be valid numbers.')
             return redirect(url_for('index'))
