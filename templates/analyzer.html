@@ -534,6 +534,16 @@
                     -
                   </p>
                 </div>
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <p class="text-sm text-gray-600 mb-1">Total Returned</p>
+                  <p
+                    class="text-2xl font-bold text-blue-700"
+                    id="totalReturned"
+                  >
+                    -
+                  </p>
+                </div>
+
                 <div class="bg-green-50 p-4 rounded-lg border border-green-200">
                   <p class="text-sm text-gray-600 mb-1">Total Sales</p>
                   <p
@@ -1229,6 +1239,8 @@
               // --- Populate Summary Cards ---
               document.getElementById("totalQuantity").textContent =
                 formatNumber(result.summary.total_quantity);
+              document.getElementById("totalReturned").textContent =
+                formatNumber(result.summary.total_return_quantity);
               document.getElementById("totalPayment").textContent =
                 formatCurrency(result.summary.total_payment);
               document.getElementById("totalCost").textContent = formatCurrency(

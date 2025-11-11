@@ -214,18 +214,18 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     if 'order_date' in filtered_orders.columns and filtered_orders['order_date'].notna().any():
         try:
             # Convert to datetime safely
-            filtered_orders['order_date'] = pd.to_datetime(
-                filtered_orders['order_date'], errors='coerce', utc=True
-            ).dt.tz_localize(None)
+            filtered_orders['order_date'] = pd.to_datetime(filtered_orders['order_date'], errors='coerce').dt.date
+
 
             # Apply filters if provided
             if start_date:
-                start_dt = pd.to_datetime(start_date)
+                start_dt = pd.to_datetime(start_date).date()
                 filtered_orders = filtered_orders[filtered_orders['order_date'] >= start_dt]
 
             if end_date:
-                end_dt = pd.to_datetime(end_date)
+                end_dt = pd.to_datetime(end_date).date()
                 filtered_orders = filtered_orders[filtered_orders['order_date'] <= end_dt]
+
 
             print(f"📅 Date filtering applied: {len(filtered_orders)} records remain "
                   f"from {start_date or 'start'} to {end_date or 'end'}.")
@@ -415,16 +415,24 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     else:
         merged_data['Amz Fees'] = 0
 
-        # --- 8. Calculate Summary ---
+    # --- 8. Calculate Summary ---
     filtered_na = merged_data[merged_data['Status'].isna()]
     total_quantity = filtered_na['quantity'].sum()
     total_payment = filtered_na['total'].sum()
     total_cost = filtered_na['Total Cost'].sum()
 
+    # ✅ Calculate total returned quantity directly from Return file
+    return_quantity_col = find_column(Return, ['Return quantity', 'return quantity', 'quantity', 'qty', 'returned qty'])
+    if return_quantity_col:
+        Return[return_quantity_col] = pd.to_numeric(Return[return_quantity_col], errors='coerce')
+        total_return_quantity = Return[return_quantity_col].sum()
+    else:
+        total_return_quantity = 0
+
+
     total_amz_fees = merged_data['Amz Fees'].sum()
 
     # --- 9. Dynamic Expenses ---
-    # Expecting: dynamic_expenses = {"Advertisement Cost": 1200, "Office Rent": 2500, "Other Expense": 700}
     if not isinstance(dynamic_expenses, dict):
         raise Exception("❌ 'dynamic_expenses' must be a dictionary, e.g. {'Ad Cost': 1000, 'Office Rent': 2000}")
 
@@ -437,7 +445,9 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         ('Total Payment', total_payment),
         ('Total Cost', total_cost),
         ('Total Amz Fees', total_amz_fees),
+        ('Total Return Quantity', total_return_quantity)
     ]
+
 
     # Add dynamic user expenses
     for name, value in dynamic_expenses.items():

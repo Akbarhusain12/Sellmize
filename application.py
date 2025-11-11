@@ -283,6 +283,7 @@ def analyze():
                 # Map known metrics
                 key_mapping = {
                     'Total Quantity': 'total_quantity',
+                    'Total Return Quantity': 'total_return_quantity',
                     'Total Payment': 'total_payment',
                     'Total Cost': 'total_cost',
                     'Total Amz Fees': 'total_amz_fees',
