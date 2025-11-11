@@ -534,11 +534,21 @@
                     -
                   </p>
                 </div>
-                <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+
+                <div class="bg-red-50 p-4 rounded-lg border border-red-200">
                   <p class="text-sm text-gray-600 mb-1">Total Returned</p>
+                  <p class="text-2xl font-bold text-red-700" id="totalReturned">
+                    -
+                  </p>
+                </div>
+
+                <div
+                  class="bg-yellow-50 p-4 rounded-lg border border-yellow-200"
+                >
+                  <p class="text-sm text-gray-600 mb-1">Total Unpaid Orders</p>
                   <p
-                    class="text-2xl font-bold text-blue-700"
-                    id="totalReturned"
+                    class="text-2xl font-bold text-yellow-700"
+                    id="totalUnpaidOrders"
                   >
                     -
                   </p>
@@ -1241,6 +1251,9 @@
                 formatNumber(result.summary.total_quantity);
               document.getElementById("totalReturned").textContent =
                 formatNumber(result.summary.total_return_quantity);
+              document.getElementById("totalUnpaidOrders").textContent =
+                formatNumber(result.summary.total_unpaid_orders);
+
               document.getElementById("totalPayment").textContent =
                 formatCurrency(result.summary.total_payment);
               document.getElementById("totalCost").textContent = formatCurrency(

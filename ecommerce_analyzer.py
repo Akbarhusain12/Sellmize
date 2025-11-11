@@ -420,6 +420,8 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     total_quantity = filtered_na['quantity'].sum()
     total_payment = filtered_na['total'].sum()
     total_cost = filtered_na['Total Cost'].sum()
+    total_unpaid_orders = len(unpaid_orders)
+
 
     # ✅ Calculate total returned quantity directly from Return file
     return_quantity_col = find_column(Return, ['Return quantity', 'return quantity', 'quantity', 'qty', 'returned qty'])
@@ -445,7 +447,8 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         ('Total Payment', total_payment),
         ('Total Cost', total_cost),
         ('Total Amz Fees', total_amz_fees),
-        ('Total Return Quantity', total_return_quantity)
+        ('Total Return Quantity', total_return_quantity),
+        ('Total Unpaid Orders', total_unpaid_orders)
     ]
 
 
