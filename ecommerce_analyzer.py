@@ -306,6 +306,8 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
 
     unpaid_orders = unpaid_orders.sort_values(by='Order Date', ascending=False).reset_index(drop=True)
     print(f"⚠️ Found {len(unpaid_orders)} unpaid orders (present in Orders but missing in Payments).")
+    total_unpaid_orders = unpaid_orders['Quantity'].sum()
+    
 
     # Keep only rows where payment total exists (i.e., payment matched)
     merged_data = merged_data[merged_data['total'].notna()]
@@ -420,7 +422,7 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     total_quantity = filtered_na['quantity'].sum()
     total_payment = filtered_na['total'].sum()
     total_cost = filtered_na['Total Cost'].sum()
-    total_unpaid_orders = len(unpaid_orders)
+
 
 
     # ✅ Calculate total returned quantity directly from Return file
