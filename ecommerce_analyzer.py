@@ -149,6 +149,7 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         # Load returns and cost price (now all Excel)
         Return = pd.concat([pd.read_excel(file) for file in converted_return_files], ignore_index=True)
         Cost_price = pd.read_excel(cost_price_file)
+        
 
     except Exception as e:
         raise Exception(f"❌ Error reading input files: {e}")
@@ -234,6 +235,30 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
             print(f"⚠️ Date filtering skipped due to error: {e}")
     else:
         print("⚠️ No valid 'order_date' column found for date filtering.")
+    
+    # --- Apply date filtering to Return file as well ---
+    return_date_col = find_column(Return, [
+        'Return request date', 'return-request-date', 'return date', 'requested date'
+    ])
+
+    if return_date_col and Return[return_date_col].notna().any():
+        try:
+            Return[return_date_col] = pd.to_datetime(Return[return_date_col], errors='coerce').dt.date
+
+            if start_date:
+                start_dt = pd.to_datetime(start_date).date()
+                Return = Return[Return[return_date_col] >= start_dt]
+
+            if end_date:
+                end_dt = pd.to_datetime(end_date).date()
+                Return = Return[Return[return_date_col] <= end_dt]
+
+            print(f"🔄 Return file filtered by {return_date_col}: {len(Return)} records remain.")
+        except Exception as e:
+            print(f"⚠️ Could not filter Return file by date ({return_date_col}): {e}")
+    else:
+        print("⚠️ No valid 'Return request date' column found or all values are missing in Return file.")
+
 
 
     # --- TOP 10 RETURNED SKUs Analysis ---
@@ -361,9 +386,9 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     merged_data['Total Cost'] = merged_data['quantity'] * merged_data['Product Cost']
 
     # Optional: Warn if any SKU in merged_data still has no cost info
-    missing_cost_skus = merged_data[merged_data['Product Cost'].isna()]['sku'].unique()
-    if len(missing_cost_skus) > 0:
-        print(f"⚠️ The following SKUs have payment but missing cost price: {missing_cost_skus}")
+    # missing_cost_skus = merged_data[merged_data['Product Cost'].isna()]['sku'].unique()
+    # if len(missing_cost_skus) > 0:
+    #     print(f"⚠️ The following SKUs have payment but missing cost price: {missing_cost_skus}")
 
 
     # --- TOP 10 SKUs by Quantity Analysis ---
