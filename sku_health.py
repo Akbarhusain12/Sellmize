@@ -17,6 +17,10 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 import logging
 import warnings
+import gc
+
+# At the end of analyze_sku_health function, add:
+gc.collect()  # Force garbage collection to free memory
 
 warnings.filterwarnings("ignore")
 
@@ -349,13 +353,13 @@ class SKUHealthScorer:
         "temporal_stability": 0.05    # Reduced
     }
     
-    def __init__(self, n_estimators: int = 200, test_size: float = 0.2, 
+    def __init__(self, n_estimators: int = 50, test_size: float = 0.2, 
                  random_state: int = 42):
         """
         Initialize the scorer.
         
         Args:
-            n_estimators: Number of trees in random forest
+            n_estimators: Number of trees in random forest (reduced for production)
             test_size: Proportion of data for testing
             random_state: Random seed for reproducibility
         """
