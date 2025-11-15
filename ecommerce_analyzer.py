@@ -4,6 +4,7 @@ from datetime import datetime
 import warnings
 import os
 import chardet
+from sku_health import build_and_score_sku_health   
 
 # Suppress warnings
 warnings.filterwarnings('ignore')
@@ -504,6 +505,30 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     file_name = f"{current_date}.xlsx"
     output_path = os.path.join(output_folder, file_name)
 
+    # --- ⭐ ADVANCED ML: SKU HEALTH SCORE ANALYSIS ⭐ ---
+    try:
+        print("🤖 Training Advanced SKU Health Score Model...")
+
+        sku_health_output = build_and_score_sku_health(
+            merged_data=merged_data,
+            Return=Return,
+            unpaid_orders=unpaid_orders,
+            output_dir=output_folder
+        )
+
+        sku_health_df = sku_health_output['scored_df']
+        model_metrics = sku_health_output['train_metrics']
+        feature_importances = sku_health_output['importances']
+
+        print(f"🎯 SKU Health Model Trained | R²={model_metrics['r2']:.3f} | RMSE={model_metrics['rmse']:.3f}")
+
+        print("💡 Top Important Features:")
+        print(feature_importances.head(10))
+
+    except Exception as e:
+        print(f"⚠️ SKU Health Score Model Failed: {e}")
+        sku_health_df = pd.DataFrame()
+        
     with pd.ExcelWriter(output_path) as writer:
         merged_data.to_excel(writer, sheet_name='Merged Data', index=False)
         summary_data.to_excel(writer, sheet_name='Summary', index=False)
@@ -511,6 +536,7 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         top_10_returns.to_excel(writer, sheet_name='Top 10 Returns', index=False)
         top_10_states.to_excel(writer, sheet_name='Top 10 States', index=False)
         unpaid_orders.to_excel(writer, sheet_name='Unpaid Orders', index=False)
+        sku_health_df.to_excel(writer, sheet_name='SKU Health Score', index=False)
 
 
     print(f"✅ Processing complete. File saved at: {output_path}")

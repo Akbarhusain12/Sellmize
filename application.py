@@ -18,12 +18,18 @@ import chardet
 import google.generativeai as genai
 import json, re
 from dotenv import load_dotenv
+from datetime import datetime
+from sku_health import analyze_sku_health  # Updated import
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 gemini_model = genai.GenerativeModel("models/gemini-2.5-flash")
-# import chatbot_agent
 
 # Initialize Flask App
 app = Flask(__name__)
@@ -33,13 +39,12 @@ app.config.from_object(Config)
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
 
-# agent = None
-# agent_filename = None
 
 @app.route('/')
 def index():
     """Renders the main upload page."""
     return render_template('index.html')
+
 
 def save_uploaded_files(order_files, payment_files, return_files, cost_price_file):
     """Helper function to save uploaded files and return their paths."""
@@ -68,15 +73,7 @@ def save_uploaded_files(order_files, payment_files, return_files, cost_price_fil
     
     return order_paths, payment_paths, return_paths, cost_price_path
 
-# def cleanup_files(*file_paths):
-#     """Helper function to clean up uploaded files."""
-#     for paths in file_paths:
-#         if isinstance(paths, list):
-#             for p in paths:
-#                 if p and os.path.exists(p):
-#                     os.remove(p)
-#         elif paths and os.path.exists(paths):
-#             os.remove(paths)
+
 def convert_txt_to_excel(txt_file_path, output_folder):
     """
     Converts a .txt, .tsv, or .csv file (comma, tab, or pipe-separated) to Excel (.xlsx)
@@ -89,7 +86,7 @@ def convert_txt_to_excel(txt_file_path, output_folder):
         result = chardet.detect(raw_data)
         detected_encoding = result['encoding'] or 'utf-8'
         confidence = result.get('confidence', 0)
-    print(f"🔍 Detected encoding for {os.path.basename(txt_file_path)}: {detected_encoding} (confidence={confidence:.2f})")
+    logger.info(f"Detected encoding for {os.path.basename(txt_file_path)}: {detected_encoding} (confidence={confidence:.2f})")
 
     # --- Detect delimiter ---
     try:
@@ -126,22 +123,22 @@ def convert_txt_to_excel(txt_file_path, output_folder):
                     encoding=fallback,
                     on_bad_lines='skip'
                 )
-                print(f"⚙️ Fallback to encoding: {fallback}")
+                logger.info(f"Fallback to encoding: {fallback}")
                 break
             except Exception:
                 continue
         else:
-            raise Exception(f"❌ Could not read {txt_file_path} with any encoding: {e}")
+            raise Exception(f"Could not read {txt_file_path} with any encoding: {e}")
 
     # --- Validate ---
     if df.empty:
-        raise Exception(f"❌ Conversion failed: {txt_file_path} produced empty DataFrame (encoding={detected_encoding}).")
+        raise Exception(f"Conversion failed: {txt_file_path} produced empty DataFrame (encoding={detected_encoding}).")
 
     # --- Save as Excel ---
     base_name = os.path.splitext(os.path.basename(txt_file_path))[0]
     excel_path = os.path.join(output_folder, f"{base_name}.xlsx")
     df.to_excel(excel_path, index=False)
-    print(f"📄 Converted {ext.upper()} → Excel: {excel_path} | {df.shape[0]} rows, {df.shape[1]} columns (encoding={detected_encoding})")
+    logger.info(f"Converted {ext.upper()} → Excel: {excel_path} | {df.shape[0]} rows, {df.shape[1]} columns")
 
     return excel_path
 
@@ -151,14 +148,12 @@ def analyzer():
     """Serves the profit analyzer page."""
     return render_template('analyzer.html')
 
+
 @app.route('/analyze', methods=['POST'])
 def analyze():
     """
     Processes files and returns summary data as JSON.
-    Also creates the chatbot agent.
     """
-    global agent, agent_filename # <-- Allow modification of global agent
-
     try:
         # --- 1. Get File Lists from Form ---
         order_files = request.files.getlist('order_files')
@@ -169,24 +164,18 @@ def analyze():
         # --- 2. Get Dynamic Expenses ---
         dynamic_expenses = {}
 
-        # Loop through all form fields dynamically
         for key, value in request.form.items():
             if key.startswith("expense_"):
-                # Example field name: expense_advertisement_cost
                 expense_name = key.replace("expense_", "").replace("_", " ").title()
                 try:
                     expense_value = float(value)
                     dynamic_expenses[expense_name] = expense_value
                 except ValueError:
                     return jsonify({'success': False, 'error': f'Invalid amount for {expense_name}.'}), 400
-           
 
-        # Ensure at least one expense exists
         if not dynamic_expenses:
             return jsonify({'success': False, 'error': 'No expense inputs found. Please provide at least one.'}), 400
 
-
-            
         # --- 3. Validation ---
         if not order_files or not payment_files or not return_files or not cost_price_file:
             return jsonify({'success': False, 'error': 'Missing one or more required file types.'}), 400
@@ -198,6 +187,7 @@ def analyze():
 
         # --- 5. Run Processing Logic ---
         try:
+            # Convert text files to Excel
             converted_order_paths = []
             for file in order_paths:
                 ext = os.path.splitext(file)[-1].lower()
@@ -215,17 +205,18 @@ def analyze():
                     converted_return_paths.append(excel_path)
                 else:
                     converted_return_paths.append(file)
+
+            # Get date range
             start_date = request.form.get('start_date')
             end_date = request.form.get('end_date')
-
-            # Convert empty strings to None for safety
             start_date = start_date if start_date else None
             end_date = end_date if end_date else None
 
+            # Process data
             output_filename = process_data(
                 order_files=converted_order_paths,
                 payment_files=payment_paths,
-                return_files=return_paths,
+                return_files=converted_return_paths,
                 cost_price_file=cost_price_path,
                 dynamic_expenses=dynamic_expenses,
                 output_folder=app.config['OUTPUT_FOLDER'],
@@ -233,10 +224,7 @@ def analyze():
                 end_date=end_date 
             )
 
-            
-            # --- 6. Read Summary & Data from Generated Excel ---
-            
-            # >>>>> FIX: DEFINE output_path *BEFORE* USING IT <<<<<
+            # --- 6. Read Data from Generated Excel ---
             output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
 
             # Read Summary sheet
@@ -245,18 +233,19 @@ def analyze():
             # Read Top 10 SKUs sheet
             top_10_df = pd.read_excel(output_path, sheet_name='Top 10 SKUs')
             
+            # Read Unpaid Orders
             unpaid_orders_df = pd.read_excel(output_path, sheet_name='Unpaid Orders')
             unpaid_orders_list = unpaid_orders_df.to_dict('records')
-
-            # Read Top 10 Returns sheet
+            
+            # Read Top 10 Returns
             try:
                 top_10_returns_df = pd.read_excel(output_path, sheet_name='Top 10 Returns')
                 top_10_returns_list = top_10_returns_df.to_dict('records')
             except Exception as e:
-                print(f"Warning: Could not read Top 10 Returns sheet: {e}")
+                logger.warning(f"Could not read Top 10 Returns sheet: {e}")
                 top_10_returns_list = []
 
-            # >>>>> FIX: THIS BLOCK IS NOW IN THE CORRECT PLACE <<<<<
+            # Read Top 10 States
             try:
                 top_states_df = pd.read_excel(output_path, sheet_name='Top 10 States')
                 top_states_df = top_states_df.rename(columns={
@@ -265,16 +254,110 @@ def analyze():
                 })
                 top_states_list = top_states_df.to_dict('records')
             except Exception as e:
-                print(f"Warning: Could not read Top 10 States sheet: {e}")
+                logger.warning(f"Could not read Top 10 States sheet: {e}")
                 top_states_list = []
 
+            # --- 7. Run SKU Health Analysis (UPDATED) ---
+            sku_health_rows = []
+            try:
+                logger.info("Starting SKU health analysis...")
+                
+                # Load required data
+                merged_data_df = pd.read_excel(output_path, sheet_name='Merged Data')
+                logger.info(f"Loaded merged data: {merged_data_df.shape[0]} rows, {merged_data_df.shape[1]} columns")
+                
+                # Check if we have SKU column
+                if 'sku' not in merged_data_df.columns:
+                    logger.error("No 'sku' column found in merged data")
+                    raise ValueError("Merged data must contain 'sku' column")
+                
+                # Log SKU distribution
+                sku_counts = merged_data_df['sku'].value_counts()
+                logger.info(f"Found {len(sku_counts)} unique SKUs")
+                logger.info(f"Top 5 SKUs by row count:\n{sku_counts.head()}")
+                
+                # Load return data
+                try:
+                    return_df = pd.read_excel(output_path, sheet_name='Top 10 Returns')
+                    logger.info(f"Loaded return data: {return_df.shape[0]} rows")
+                except Exception as e:
+                    logger.warning(f"Could not load return data: {e}")
+                    return_df = pd.DataFrame()
+                
+                # Run improved SKU health analysis with minimum order filter = 1
+                health_result = analyze_sku_health(
+                    merged_data=merged_data_df,
+                    returns=return_df,
+                    unpaid_orders=unpaid_orders_df,
+                    min_orders=1  # Changed to 1 to include all SKUs with at least one order
+                )
+                
+                # Extract scored dataframe
+                scored_df = health_result.scored_df
+                logger.info(f"Health analysis produced {len(scored_df)} scored SKUs")
+                
+                # Round scores for display
+                scored_df['health_score_pred'] = scored_df['health_score_pred'].round(2)
+                scored_df['proxy_label'] = scored_df['proxy_label'].round(2)
+                
+                # Add health rating based on score
+                def get_health_rating(score):
+                    if score >= 75:
+                        return "Excellent"
+                    elif score >= 60:
+                        return "Good"
+                    elif score >= 40:
+                        return "Fair"
+                    else:
+                        return "Poor"
+                
+                scored_df['health_rating'] = scored_df['health_score_pred'].apply(get_health_rating)
+                
+                # Rename columns for UI
+                scored_df = scored_df.rename(columns={
+                    'SKU': 'SKU',
+                    'health_score_pred': 'Score',
+                    'proxy_label': 'Rating',
+                    'cluster': 'Segment',
+                    'anomaly': 'Anomaly',
+                    'health_rating': 'Health',
+                    'key_issues': 'Key_Issues'  # Use underscore instead of space
+                })
+                
+                # Select columns for display
+                display_cols = ['SKU', 'Score', 'Health', 'Key_Issues']
+                
+                # Optionally include additional columns
+                if 'Rating' in scored_df.columns:
+                    display_cols.append('Rating')
+                if 'Segment' in scored_df.columns:
+                    display_cols.append('Segment')
+                if 'Anomaly' in scored_df.columns:
+                    # Convert boolean to Yes/No for better display
+                    scored_df['Anomaly'] = scored_df['Anomaly'].map({True: 'Yes', False: 'No'})
+                    display_cols.append('Anomaly')
+                
+                sku_health_rows = scored_df[display_cols].to_dict('records')
+                
+                logger.info(f"SKU health analysis complete: {len(sku_health_rows)} SKUs analyzed")
+                logger.info(f"Model metrics: {health_result.train_metrics}")
+                
+                # Log sample results
+                if len(sku_health_rows) > 0:
+                    logger.info(f"Sample result: {sku_health_rows[0]}")
+                
+            except Exception as e:
+                logger.error(f"SKU Health Score Model Failed: {e}", exc_info=True)
+                sku_health_rows = []
+                # Don't fail the entire request, just return empty health data
 
+            # --- 8. Process Summary Data ---
             summary_dict = {}
             for _, row in summary_df.iterrows():
                 metric = str(row['Metric']).strip()
                 value = row['Value']
 
-                # convert safely to float
+                # Convert safely to float
                 try:
                     value = float(value)
                 except (ValueError, TypeError):
@@ -294,16 +377,14 @@ def analyze():
                 if metric in key_mapping:
                     summary_dict[key_mapping[metric]] = value
                 elif metric.lower() not in ['total quantity', 'total payment', 'total cost', 'net profit']:
-                    # everything else is treated as dynamic expense
+                    # Everything else is treated as dynamic expense
                     clean_key = "expense_" + metric.lower().replace(" ", "_")
                     summary_dict[clean_key] = value
-
-
 
             # Convert Top 10 SKUs to list of dictionaries
             top_10_list = top_10_df.to_dict('records')
             
-            # --- 7. Return Summary, Top 10 SKUs, and Top 10 Returns as JSON ---
+            # --- 9. Return Complete Response ---
             return jsonify({
                 'success': True,
                 'filename': output_filename,
@@ -311,19 +392,19 @@ def analyze():
                 'top_10_skus': top_10_list,
                 'top_10_returns': top_10_returns_list,
                 'top_states': top_states_list,
-                'unpaid_orders': unpaid_orders_list
+                'unpaid_orders': unpaid_orders_list,
+                'sku_health': sku_health_rows
             })
 
         except Exception as e:
-            # Clean up uploaded files even if an error occurs
-            # cleanup_files(order_paths, payment_paths, return_paths, cost_price_path)
+            logger.error(f"Processing error: {e}", exc_info=True)
             return jsonify({'success': False, 'error': f'Processing error: {str(e)}'}), 500
 
     except Exception as e:
+        logger.error(f"Server error: {e}", exc_info=True)
         return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
 
 
-    
 @app.route('/download/<filename>')
 def download(filename):
     """
@@ -343,7 +424,9 @@ def download(filename):
         return send_file(file_path, as_attachment=True, download_name=filename)
         
     except Exception as e:
+        logger.error(f"Download error: {e}", exc_info=True)
         return jsonify({'error': f'Download error: {str(e)}'}), 500
+
 
 @app.route('/process', methods=['POST'])
 def process_files():
@@ -388,9 +471,6 @@ def process_files():
                 stitching_cost=stitching_cost,
                 output_folder=app.config['OUTPUT_FOLDER']
             )
-            
-            # Clean up uploaded files after processing
-            # cleanup_files(order_paths, payment_paths, return_paths, cost_price_path)
 
             # --- 6. Send File to User ---
             return send_from_directory(
@@ -400,20 +480,18 @@ def process_files():
             )
 
         except Exception as e:
-            # Clean up uploaded files even if an error occurs
-            # cleanup_files(order_paths, payment_paths, return_paths, cost_price_path)
-            
+            logger.error(f"Processing error: {e}", exc_info=True)
             flash(f'An error occurred during processing: {str(e)}')
             return redirect(url_for('index'))
 
 
-
-@app.route('/content-generator')  # Changed route name
+@app.route('/content-generator')
 def content_generator_page():
     """Serves the content generator page."""
     return render_template('content_generator.html')
 
-@app.route('/generate_content', methods=['POST'])  # Keep this as is
+
+@app.route('/generate_content', methods=['POST'])
 def generate_content():
     """
     AI-powered product content generator using Gemini.
@@ -486,6 +564,7 @@ def generate_content():
         })
 
     except Exception as e:
+        logger.error(f"Content generation error: {e}", exc_info=True)
         return jsonify({
             "success": False,
             "error": f"Server error: {str(e)}"

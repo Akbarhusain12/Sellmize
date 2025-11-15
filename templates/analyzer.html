@@ -633,13 +633,14 @@
           class="bg-white rounded-lg shadow-xl p-8 mb-6"
           style="display: none"
         >
+          <!-- ======================= TAB HEADER ======================= -->
           <div class="flex border-b border-gray-200 mb-6">
             <button
               id="ordersTab"
               class="tab-button active flex items-center px-6 py-3 font-semibold text-primary-600 border-b-2 border-primary-600 transition-all"
             >
               <svg
-                class="w-5 h-5 mr-2"
+                class="w-5 h-5 mr-2 text-gray-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -649,16 +650,17 @@
                   stroke-linejoin="round"
                   stroke-width="2"
                   d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                ></path>
+                />
               </svg>
               Orders Analysis
             </button>
+
             <button
               id="statesTab"
-              class="tab-button active flex items-center px-6 py-3 font-semibold text-primary-600 border-b-2 border-primary-600 transition-all"
+              class="tab-button flex items-center px-6 py-3 font-semibold text-gray-600 hover:text-primary-600 transition-all"
             >
               <svg
-                class="w-5 h-5 mr-2"
+                class="w-5 h-5 mr-2 text-gray-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -668,16 +670,17 @@
                   stroke-linejoin="round"
                   stroke-width="2"
                   d="M3 3v18h18M3 9h18M3 15h18"
-                ></path>
+                />
               </svg>
               State Analysis
             </button>
+
             <button
               id="returnsTab"
-              class="tab-button active flex items-center px-6 py-3 font-semibold text-primary-600 border-b-2 border-primary-600 transition-all"
+              class="tab-button flex items-center px-6 py-3 font-semibold text-gray-600 hover:text-primary-600 transition-all"
             >
               <svg
-                class="w-5 h-5 mr-2"
+                class="w-5 h-5 mr-2 text-gray-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -687,16 +690,17 @@
                   stroke-linejoin="round"
                   stroke-width="2"
                   d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
-                ></path>
+                />
               </svg>
               Returns Analysis
             </button>
+
             <button
               id="unpaidTab"
               class="tab-button flex items-center px-6 py-3 font-semibold text-gray-600 hover:text-primary-600 transition-all"
             >
               <svg
-                class="w-5 h-5 mr-2 text-yellow-600"
+                class="w-5 h-5 mr-2 text-gray-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -706,12 +710,35 @@
                   stroke-linejoin="round"
                   stroke-width="2"
                   d="M12 8v4l3 3m6 0a9 9 0 11-18 0 9 9 0 0118 0z"
-                ></path>
+                />
               </svg>
               Unpaid Orders
             </button>
-          </div>
 
+            <!-- ⭐ Correct Position for Health Tab ⭐ -->
+            <button
+              id="healthTab"
+              class="tab-button flex items-center px-6 py-3 font-semibold text-gray-600 hover:text-primary-600 transition-all"
+            >
+              <svg
+                class="w-5 h-5 mr-2 text-gray-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 8c-1.105 0-2 .895-2 2v10m2-10c1.105 0 2 .895 2 2v10M6 12v10m12-10v10"
+                />
+              </svg>
+              SKU Health Score
+            </button>
+          </div>
+          <!-- ======================= END TAB HEADER ======================= -->
+
+          <!-- ======================= ORDERS ======================= -->
           <div id="ordersContent" class="tab-content" style="display: none">
             <div class="flex items-center justify-between mb-6">
               <h2 class="text-2xl font-bold text-gray-800 flex items-center">
@@ -726,31 +753,12 @@
                     stroke-linejoin="round"
                     stroke-width="2"
                     d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-                  ></path>
+                  />
                 </svg>
                 Top 10 Best-Selling SKUs
               </h2>
-              <div
-                class="flex items-center space-x-2 bg-accent-50 px-4 py-2 rounded-lg"
-              >
-                <svg
-                  class="w-5 h-5 text-accent-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
-                  ></path>
-                </svg>
-                <span class="text-sm font-medium text-accent-700"
-                  >Top Performers</span
-                >
-              </div>
             </div>
+
             <div class="overflow-x-auto">
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gradient-to-r from-primary-50 to-accent-50">
@@ -780,6 +788,7 @@
             </div>
           </div>
 
+          <!-- ======================= STATES ======================= -->
           <div id="statesContent" class="tab-content" style="display: none">
             <div class="flex items-center justify-between mb-6">
               <h2 class="text-2xl font-bold text-gray-800 flex items-center">
@@ -794,7 +803,7 @@
                     stroke-linejoin="round"
                     stroke-width="2"
                     d="M3 3v18h18M3 9h18M3 15h18"
-                  ></path>
+                  />
                 </svg>
                 Top 10 States by Order Quantity
               </h2>
@@ -806,6 +815,7 @@
             </div>
           </div>
 
+          <!-- ======================= RETURNS ======================= -->
           <div id="returnsContent" class="tab-content" style="display: none">
             <div class="flex items-center justify-between mb-6">
               <h2 class="text-2xl font-bold text-gray-800 flex items-center">
@@ -820,31 +830,12 @@
                     stroke-linejoin="round"
                     stroke-width="2"
                     d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
-                  ></path>
+                  />
                 </svg>
                 Top 10 Returned SKUs
               </h2>
-              <div
-                class="flex items-center space-x-2 bg-red-50 px-4 py-2 rounded-lg"
-              >
-                <svg
-                  class="w-5 h-5 text-red-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                  ></path>
-                </svg>
-                <span class="text-sm font-medium text-red-700"
-                  >High Return Items</span
-                >
-              </div>
             </div>
+
             <div class="overflow-x-auto">
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gradient-to-r from-red-50 to-orange-50">
@@ -879,11 +870,12 @@
             </div>
           </div>
 
+          <!-- ======================= UNPAID ORDERS ======================= -->
           <div id="unpaidContent" class="tab-content" style="display: none">
             <div class="flex items-center justify-between mb-6">
               <h2 class="text-2xl font-bold text-gray-800 flex items-center">
                 <svg
-                  class="w-7 h-7 mr-2 text-yellow-600"
+                  class="w-7 h-7 mr-2 text-gray-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -893,11 +885,12 @@
                     stroke-linejoin="round"
                     stroke-width="2"
                     d="M12 8v4l3 3m6 0a9 9 0 11-18 0 9 9 0 0118 0z"
-                  ></path>
+                  />
                 </svg>
                 Orders Not Yet Paid
               </h2>
             </div>
+
             <div class="overflow-x-auto">
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gradient-to-r from-yellow-50 to-amber-50">
@@ -936,6 +929,61 @@
                 </thead>
                 <tbody
                   id="unpaidTableBody"
+                  class="bg-white divide-y divide-gray-200"
+                ></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- ======================= SKU HEALTH SCORE ======================= -->
+          <div id="healthContent" class="tab-content" style="display: none">
+            <div class="flex items-center justify-between mb-6">
+              <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+                <svg
+                  class="w-7 h-7 mr-2 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z"
+                  />
+                </svg>
+                SKU Health Score (AI Powered)
+              </h2>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gradient-to-r from-green-50 to-emerald-50">
+                  <tr>
+                    <th
+                      class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
+                    >
+                      SKU
+                    </th>
+                    <th
+                      class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
+                    >
+                      Score
+                    </th>
+                    <th
+                      class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
+                    >
+                      Rating
+                    </th>
+                    <th
+                      class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
+                    >
+                      Key Issues
+                    </th>
+                  </tr>
+                </thead>
+                <tbody
+                  id="healthTableBody"
                   class="bg-white divide-y divide-gray-200"
                 ></tbody>
               </table>
@@ -1123,6 +1171,8 @@
         const statesContent = document.getElementById("statesContent");
         const unpaidTab = document.getElementById("unpaidTab");
         const unpaidContent = document.getElementById("unpaidContent");
+        const healthTab = document.getElementById("healthTab");
+        const healthContent = document.getElementById("healthContent");
 
         // --- 2. DEFINE ALL FUNCTIONS ---
 
@@ -1445,6 +1495,7 @@
               }
 
               // --- Populate Unpaid Orders ---
+
               const unpaidTableBody =
                 document.getElementById("unpaidTableBody");
               unpaidTableBody.innerHTML = "";
@@ -1475,6 +1526,129 @@
       }</td>`;
                   unpaidTableBody.appendChild(row);
                 });
+              }
+
+              // --- Populate SKU Health Score Table ---
+              const healthTableBody =
+                document.getElementById("healthTableBody");
+              healthTableBody.innerHTML = "";
+
+              if (result.sku_health && result.sku_health.length > 0) {
+                result.sku_health.forEach((item) => {
+                  const row = document.createElement("tr");
+                  row.className = "hover:bg-green-50 transition-colors";
+
+                  // Get health rating badge based on Health field
+                  let healthBadge = "";
+                  const health = item.Health || "Poor"; // Default to Poor if missing
+
+                  if (health === "Excellent") {
+                    healthBadge =
+                      '<span class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">Excellent</span>';
+                  } else if (health === "Good") {
+                    healthBadge =
+                      '<span class="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">Good</span>';
+                  } else if (health === "Fair") {
+                    healthBadge =
+                      '<span class="px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs font-semibold">Fair</span>';
+                  } else {
+                    healthBadge =
+                      '<span class="px-3 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold">Poor</span>';
+                  }
+
+                  // Get key issues - handle both possible field names
+                  const keyIssues =
+                    item.Key_Issues ||
+                    item["Key Issues"] ||
+                    item.key_issues ||
+                    "None";
+
+                  // Style key issues based on severity
+                  let issuesHtml = keyIssues;
+                  if (keyIssues !== "None") {
+                    const issuesList = keyIssues.split(", ");
+                    issuesHtml = issuesList
+                      .map((issue) => {
+                        let badgeColor = "bg-gray-100 text-gray-700"; // default
+
+                        // Critical issues - red
+                        if (
+                          [
+                            "Negative Margin",
+                            "High Returns",
+                            "Stale Inventory",
+                            "Payment Issues",
+                          ].includes(issue)
+                        ) {
+                          badgeColor = "bg-red-100 text-red-700";
+                        }
+                        // Warning issues - yellow
+                        else if (
+                          [
+                            "Low Volume",
+                            "Moderate Returns",
+                            "Low Margin",
+                            "Slow Moving",
+                            "Inactive",
+                            "Few Orders",
+                          ].includes(issue)
+                        ) {
+                          badgeColor = "bg-yellow-100 text-yellow-700";
+                        }
+                        // Operational issues - blue
+                        else if (
+                          [
+                            "Volatile Demand",
+                            "Geographic Risk",
+                            "Anomaly Detected",
+                          ].includes(issue)
+                        ) {
+                          badgeColor = "bg-blue-100 text-blue-700";
+                        }
+
+                        return `<span class="inline-block px-2 py-1 rounded-full ${badgeColor} text-xs font-medium mr-1 mb-1">${issue}</span>`;
+                      })
+                      .join("");
+                  } else {
+                    issuesHtml =
+                      '<span class="text-green-600 font-medium">✓ None</span>';
+                  }
+
+                  row.innerHTML = `
+      <td class="px-6 py-4 whitespace-nowrap">
+        <div class="text-sm font-medium text-gray-900">${item.SKU}</div>
+      </td>
+      <td class="px-6 py-4 whitespace-nowrap">
+        <div class="text-sm font-bold text-primary-600">${Number(
+          item.Score
+        ).toFixed(2)}</div>
+      </td>
+      <td class="px-6 py-4 whitespace-nowrap">${healthBadge}</td>
+      <td class="px-6 py-4">
+        <div class="text-sm">${issuesHtml}</div>
+      </td>
+    `;
+                  healthTableBody.appendChild(row);
+                });
+              } else {
+                // Show helpful message if no data
+                const row = document.createElement("tr");
+                row.innerHTML = `
+    <td colspan="4" class="px-6 py-8 text-center">
+      <div class="flex flex-col items-center justify-center space-y-3">
+        <svg class="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        <div class="text-gray-500">
+          <p class="font-semibold text-lg">No SKU Health Data Available</p>
+          <p class="text-sm mt-1">The AI model needs sufficient data to analyze SKU health.</p>
+          <p class="text-xs mt-2 text-gray-400">Check the console logs for detailed error messages.</p>
+        </div>
+      </div>
+    </td>
+  `;
+                healthTableBody.appendChild(row);
               }
 
               // --- Show results ---
@@ -1547,18 +1721,23 @@
         // Handle Tab Switching
         function switchTabs(tab) {
           // Reset all buttons
-          [ordersTab, returnsTab, statesTab, unpaidTab].forEach((btn) =>
-            btn.classList.remove(
-              "active",
-              "text-primary-600",
-              "border-primary-600"
-            )
+          [ordersTab, returnsTab, statesTab, unpaidTab, healthTab].forEach(
+            (btn) =>
+              btn.classList.remove(
+                "active",
+                "text-primary-600",
+                "border-primary-600"
+              )
           );
 
           // Hide all contents
-          [ordersContent, returnsContent, statesContent, unpaidContent].forEach(
-            (el) => (el.style.display = "none")
-          );
+          [
+            ordersContent,
+            returnsContent,
+            statesContent,
+            unpaidContent,
+            healthContent,
+          ].forEach((el) => (el.style.display = "none"));
 
           // Activate selected tab
           if (tab === "orders") {
@@ -1589,6 +1768,13 @@
               "border-primary-600"
             );
             unpaidContent.style.display = "block";
+          } else if (tab === "health") {
+            healthTab.classList.add(
+              "active",
+              "text-primary-600",
+              "border-primary-600"
+            );
+            healthContent.style.display = "block";
           }
         }
 
@@ -1676,6 +1862,7 @@
         returnsTab.addEventListener("click", () => switchTabs("returns"));
         statesTab.addEventListener("click", () => switchTabs("states"));
         unpaidTab.addEventListener("click", () => switchTabs("unpaid"));
+        healthTab.addEventListener("click", () => switchTabs("health"));
       });
     </script>
     <div id="flash-container" class="mb-6 space-y-3 max-w-6xl mx-auto"></div>
