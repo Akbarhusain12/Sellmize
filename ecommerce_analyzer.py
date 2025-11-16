@@ -4,20 +4,38 @@ from datetime import datetime
 import warnings
 import os
 import chardet
-from sku_health import build_and_score_sku_health   
+
+# Attempt to import the custom ML module, but don't fail if it's not present
+try:
+    from sku_health import build_and_score_sku_health
+except ImportError:
+    print("Warning: 'sku_health' module not found. SKU Health Score will be skipped.")
+    # Define a placeholder function if the import fails
+    def build_and_score_sku_health(*args, **kwargs):
+        print("SKU Health module not available, skipping analysis.")
+        return {
+            'scored_df': pd.DataFrame(),
+            'train_metrics': {},
+            'importances': pd.DataFrame()
+        }
 
 # Suppress warnings
 warnings.filterwarnings('ignore')
 
+# --------------------------------------------------------------------------
+# SECTION 1: CORE UTILITY FUNCTIONS
+# --------------------------------------------------------------------------
 
 def _clean_and_sum(value):
-    """Helper function to clean and sum monetary values."""
+    """
+    Helper function to clean and sum monetary values from strings.
+    Handles currency symbols, commas, and multiple values in one string.
+    """
     if isinstance(value, str):
         parts = re.findall(r'-?\d+(?:,\d{3})*(?:\.\d+)?', value)
         cleaned_numbers = [float(part.replace(',', '')) for part in parts]
         return sum(cleaned_numbers)
     return value
-
 
 
 def convert_txt_to_excel(txt_file_path, output_folder):
@@ -26,7 +44,8 @@ def convert_txt_to_excel(txt_file_path, output_folder):
     and returns the new Excel file path.
     Handles UTF-8, UTF-16, CP1252 automatically.
     """
-    # --- Detect encoding automatically ---
+    
+    # --- 1. Detect encoding automatically ---
     with open(txt_file_path, 'rb') as f:
         raw_data = f.read(50000)  # first 50KB for detection
         result = chardet.detect(raw_data)
@@ -34,7 +53,7 @@ def convert_txt_to_excel(txt_file_path, output_folder):
         confidence = result.get('confidence', 0)
     print(f"🔍 Detected encoding for {os.path.basename(txt_file_path)}: {detected_encoding} (confidence={confidence:.2f})")
 
-    # --- Detect delimiter ---
+    # --- 2. Detect delimiter ---
     try:
         with open(txt_file_path, 'r', encoding=detected_encoding, errors='ignore') as f:
             sample = f.read(2048)
@@ -49,7 +68,7 @@ def convert_txt_to_excel(txt_file_path, output_folder):
     else:
         sep = ','
 
-    # --- Read file with safe encoding ---
+    # --- 3. Read file with safe encoding ---
     try:
         df = pd.read_csv(
             txt_file_path,
@@ -59,7 +78,7 @@ def convert_txt_to_excel(txt_file_path, output_folder):
             on_bad_lines='skip'
         )
     except Exception as e:
-        # Try fallback encodings
+        # Try fallback encodings if chardet fails
         for fallback in ['utf-16', 'cp1252', 'latin1']:
             try:
                 df = pd.read_csv(
@@ -76,19 +95,17 @@ def convert_txt_to_excel(txt_file_path, output_folder):
         else:
             raise Exception(f"❌ Could not read {txt_file_path} with any encoding: {e}")
 
-    # --- Validate ---
+    # --- 4. Validate ---
     if df.empty:
         raise Exception(f"❌ Conversion failed: {txt_file_path} produced empty DataFrame (encoding={detected_encoding}).")
 
-    # --- Save as Excel ---
+    # --- 5. Save as Excel ---
     base_name = os.path.splitext(os.path.basename(txt_file_path))[0]
     excel_path = os.path.join(output_folder, f"{base_name}.xlsx")
     df.to_excel(excel_path, index=False)
     print(f"📄 Converted {ext.upper()} → Excel: {excel_path} | {df.shape[0]} rows, {df.shape[1]} columns (encoding={detected_encoding})")
 
     return excel_path
-
-
 
 
 def find_column(df, possible_names):
@@ -107,15 +124,22 @@ def find_column(df, possible_names):
                 return original
     return None
 
+# --------------------------------------------------------------------------
+# SECTION 2: MAIN DATA PROCESSING ORCHESTRATOR
+# --------------------------------------------------------------------------
 
 def process_data(order_files, payment_files, return_files, cost_price_file,
                  dynamic_expenses, output_folder,
                  start_date=None, end_date=None):
+    """
+    Main data processing pipeline.
+    Orchestrates loading, cleaning, merging, analysis, and exporting.
+    """
 
-
-    # --- 1. Load Data ---
+    # --- 1. Load Data (with TXT-to-Excel conversion) ---
+    print("--- 1. Loading Data ---")
     try:
-        # --- 1. Load Data (Auto-handle TXT → Excel conversion) ---
+        # Convert text-based order files to Excel
         converted_order_files = []
         for file in order_files:
             ext = os.path.splitext(file)[-1].lower()
@@ -124,8 +148,6 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
                 converted_order_files.append(excel_path)
             else:
                 converted_order_files.append(file)
-
-        # Load all orders (Excel format only now)
         orders = pd.concat([pd.read_excel(file) for file in converted_order_files], ignore_index=True)
 
         # Load payments
@@ -138,6 +160,7 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
             payment_dfs.append(df)
         payment = pd.concat(payment_dfs, ignore_index=True)
 
+        # Convert text-based return files to Excel
         converted_return_files = []
         for file in return_files:
             ext = os.path.splitext(file)[-1].lower()
@@ -146,17 +169,16 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
                 converted_return_files.append(excel_path)
             else:
                 converted_return_files.append(file)
-
-        # Load returns and cost price (now all Excel)
         Return = pd.concat([pd.read_excel(file) for file in converted_return_files], ignore_index=True)
-        Cost_price = pd.read_excel(cost_price_file)
         
+        # Load cost price
+        Cost_price = pd.read_excel(cost_price_file)
 
     except Exception as e:
         raise Exception(f"❌ Error reading input files: {e}")
 
-
-    # --- 2. Find columns with flexible matching ---
+    # --- 2. Find Columns and Filter by Date ---
+    print("--- 2. Finding Columns & Filtering Dates ---")
     
     # Find all required columns from the orders file at the start
     order_id_col = find_column(orders, ['amazon-order-id', 'order-id', 'order id', 'orderid', 'amazon order id'])
@@ -213,11 +235,11 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         if col not in filtered_orders.columns:
             filtered_orders[col] = None
             
+    # --- Date Filtering (Orders) ---
     if 'order_date' in filtered_orders.columns and filtered_orders['order_date'].notna().any():
         try:
             # Convert to datetime safely
             filtered_orders['order_date'] = pd.to_datetime(filtered_orders['order_date'], errors='coerce').dt.date
-
 
             # Apply filters if provided
             if start_date:
@@ -228,7 +250,6 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
                 end_dt = pd.to_datetime(end_date).date()
                 filtered_orders = filtered_orders[filtered_orders['order_date'] <= end_dt]
 
-
             print(f"📅 Date filtering applied: {len(filtered_orders)} records remain "
                   f"from {start_date or 'start'} to {end_date or 'end'}.")
 
@@ -237,7 +258,7 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     else:
         print("⚠️ No valid 'order_date' column found for date filtering.")
     
-    # --- Apply date filtering to Return file as well ---
+    # --- Date Filtering (Returns) ---
     return_date_col = find_column(Return, [
         'Return request date', 'return-request-date', 'return date', 'requested date'
     ])
@@ -260,8 +281,9 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     else:
         print("⚠️ No valid 'Return request date' column found or all values are missing in Return file.")
 
-
-
+    # --- 3. Pre-Merge Analysis (Top 10s) ---
+    print("--- 3. Running Pre-Merge Analysis ---")
+    
     # --- TOP 10 RETURNED SKUs Analysis ---
     return_sku_col = find_column(Return, ['Merchant SKU', 'merchant sku', 'sku', 'SKU', 'product-sku'])
     return_quantity_col = find_column(Return, ['Return quantity', 'return quantity', 'quantity', 'qty', 'returned qty'])
@@ -280,6 +302,9 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         print(f"Warning: Could not find return columns. Found: {Return.columns.tolist()}")
         top_10_returns = pd.DataFrame(columns=['Rank', 'sku', 'quantity', 'category'])
         
+    # --- 4. Clean & Merge Core Data ---
+    print("--- 4. Cleaning & Merging Data ---")
+
     # --- Return file columns ---
     return_order_id_col = find_column(Return, ['Order ID', 'order id', 'orderid', 'order-id'])
     return_type_col = find_column(Return, ['Return type', 'return type', 'returntype', 'return_type', 'status'])
@@ -305,7 +330,7 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     filtered_payment['total'] = filtered_payment['total'].apply(_clean_and_sum)
     consolidated_payment = filtered_payment.groupby('order id', as_index=False)['total'].sum()
 
-    # --- 4. Merge Orders and Payments (only matching SKUs should remain) ---
+    # --- 4. Merge Orders and Payments ---
     merged_data = pd.merge(
         filtered_orders,
         consolidated_payment,
@@ -314,13 +339,11 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         how='left'
     )
 
+    # --- 4a. Identify Unpaid Orders ---
     unpaid_orders = merged_data[merged_data['total'].isna()].copy()
-
-    # Clean and keep relevant columns for reporting
-    unpaid_orders = unpaid_orders[[
-        'amazon-order-id', 'sku', 'quantity', 'item_price', 'order_date', 'ship_state'
-    ]].copy()
-
+    unpaid_orders = unpaid_orders[
+        ['amazon-order-id', 'sku', 'quantity', 'item_price', 'order_date', 'ship_state']
+    ].copy()
     unpaid_orders.rename(columns={
         'amazon-order-id': 'Order ID',
         'sku': 'SKU',
@@ -329,17 +352,14 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         'order_date': 'Order Date',
         'ship_state': 'Ship State'
     }, inplace=True)
-
     unpaid_orders = unpaid_orders.sort_values(by='Order Date', ascending=False).reset_index(drop=True)
     print(f"⚠️ Found {len(unpaid_orders)} unpaid orders (present in Orders but missing in Payments).")
     total_unpaid_orders = unpaid_orders['Quantity'].sum()
     
-
-    # Keep only rows where payment total exists (i.e., payment matched)
+    # --- 4b. Filter to PAID Orders Only ---
     merged_data = merged_data[merged_data['total'].notna()]
 
-    # Optional: If multiple SKUs share order IDs, double-check SKU consistency
-    # (We assume SKU and order id should both exist together)
+    # --- 4c. Verify SKU consistency ---
     merged_data['sku'] = merged_data['sku'].astype(str).str.strip().str.upper()
     consolidated_sku_orders = filtered_orders[['amazon-order-id', 'sku']].copy()
     consolidated_sku_orders['sku'] = consolidated_sku_orders['sku'].astype(str).str.strip().str.upper()
@@ -350,50 +370,31 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         on=['amazon-order-id', 'sku'],
         how='inner'
     )
-
     
-    # Define the columns we want to keep after the merge
+    # Keep relevant columns
     keep_cols = ['amazon-order-id', 'sku', 'quantity', 'total', 'item_price', 'order_date', 'ship_state']
-    # Filter to only keep columns that actually exist in merged_data
     final_keep_cols = [col for col in keep_cols if col in merged_data.columns]
     merged_data = merged_data[final_keep_cols]
 
-
-    # --- 5. Map Cost Price (only for SKUs present in both Order & Payment files) ---
-
+    # --- 5. Map Cost Price (on PAID data) ---
+    print("--- 5. Mapping Cost Price ---")
     merged_data['sku'] = merged_data['sku'].astype(str).str.strip().str.upper()
-
-    # Identify cost-related columns
     cost_sku_col = find_column(Cost_price, ['SKU', 'sku', 'product-sku', 'product sku'])
     cost_price_col = find_column(Cost_price, ['Product Cost', 'product cost', 'cost', 'price'])
 
     if not all([cost_sku_col, cost_price_col]):
         raise Exception(f"❌ Missing required columns in cost price file. Found columns: {Cost_price.columns.tolist()}")
 
-    # Standardize SKU in cost file
     Cost_price[cost_sku_col] = Cost_price[cost_sku_col].astype(str).str.strip().str.upper()
-
-    # ✅ Only use SKUs that appear in merged_data (i.e., Orders + Payments)
     paid_skus = set(merged_data['sku'].unique())
     Cost_price_filtered = Cost_price[Cost_price[cost_sku_col].isin(paid_skus)]
-
-    # Create mapping only for those SKUs
     cost_price_dict = Cost_price_filtered.set_index(cost_sku_col)[cost_price_col].to_dict()
 
-    # Map cost price only for paid SKUs
     merged_data['Product Cost'] = merged_data['sku'].map(cost_price_dict)
-
-    # Calculate total cost only where both SKU and payment exist
     merged_data['Total Cost'] = merged_data['quantity'] * merged_data['Product Cost']
 
-    # Optional: Warn if any SKU in merged_data still has no cost info
-    # missing_cost_skus = merged_data[merged_data['Product Cost'].isna()]['sku'].unique()
-    # if len(missing_cost_skus) > 0:
-    #     print(f"⚠️ The following SKUs have payment but missing cost price: {missing_cost_skus}")
-
-
-    # --- TOP 10 SKUs by Quantity Analysis ---
-    top_10_data = merged_data[['sku', 'quantity']].copy()
+    # --- 6. Post-Merge Analysis (Paid Data) ---
+    print("--- 6. Running Post-Merge Analysis ---")
 
     # --- TOP 10 STATES by Quantity Analysis ---
     if 'ship_state' in merged_data.columns and merged_data['ship_state'].notna().any():
@@ -401,8 +402,6 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         top_10_states_data['ship_state'] = top_10_states_data['ship_state'].astype(str).str.strip().str.title()
         top_10_states_data['quantity'] = pd.to_numeric(top_10_states_data['quantity'], errors='coerce')
         top_10_states_data = top_10_states_data.dropna(subset=['quantity'])
-        
-        # Group by state and sum quantities
         top_10_states_grouped = top_10_states_data.groupby('ship_state', as_index=False)['quantity'].sum()
         top_10_states = top_10_states_grouped.sort_values('quantity', ascending=False).head(10).reset_index(drop=True)
         top_10_states.insert(0, 'Rank', range(1, len(top_10_states) + 1))
@@ -410,20 +409,22 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         print("⚠️ No 'ship_state' column found or all values are missing.")
         top_10_states = pd.DataFrame(columns=['Rank', 'ship_state', 'quantity'])
 
-    # CRITICAL: Standardize SKU BEFORE grouping
+    # --- TOP 10 SKUs by Quantity Analysis (Paid Orders) ---
+    # This overwrites the initial 'all orders' SKU analysis, which is intentional
+    top_10_data = merged_data[['sku', 'quantity']].copy()
     top_10_data['sku'] = top_10_data['sku'].astype(str).str.strip().str.upper()
     top_10_data['quantity'] = pd.to_numeric(top_10_data['quantity'], errors='coerce')
     top_10_data = top_10_data.dropna(subset=['quantity'])
-
     top_10_grouped = top_10_data.groupby('sku', as_index=False)['quantity'].sum()
     top_10_skus = top_10_grouped.sort_values('quantity', ascending=False).head(10).reset_index(drop=True)
     top_10_skus.insert(0, 'Rank', range(1, len(top_10_skus) + 1))
 
-    # --- 6. Merge Return Status ---
+    # --- 7. Final Merge & Fee Calculation ---
+    print("--- 7. Merging Returns & Fees ---")
+    
+    # Merge Return Status
     filtered_return['Order ID'] = filtered_return['Order ID'].astype(str)
     filtered_return = filtered_return.drop_duplicates(subset=['Order ID'], keep='last')
-
-
     merged_data = pd.merge(
         merged_data,
         filtered_return[['Order ID', 'Return type']],
@@ -431,11 +432,10 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         right_on='Order ID',
         how='left'
     )
-
     merged_data.rename(columns={'Return type': 'Status'}, inplace=True)
     merged_data.drop(columns=['Order ID'], inplace=True, errors='ignore')
 
-
+    # Add Amz Fees
     amz_fees_col = find_column(Cost_price, ['Amz Fees', 'amz fees', 'amazon fees', 'fees'])
     if amz_fees_col:
         amz_fees_dict = Cost_price.set_index(cost_sku_col)[amz_fees_col].to_dict()
@@ -443,22 +443,22 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     else:
         merged_data['Amz Fees'] = 0
 
-    # --- 8. Calculate Summary ---
+    # --- 8. Calculate Final Summary ---
+    print("--- 8. Calculating Final Summary ---")
+    
+    # Filter to non-returned items for profit calculation
     filtered_na = merged_data[merged_data['Status'].isna()]
     total_quantity = filtered_na['quantity'].sum()
     total_payment = filtered_na['total'].sum()
     total_cost = filtered_na['Total Cost'].sum()
 
-
-
-    # ✅ Calculate total returned quantity directly from Return file
+    # Calculate total returned quantity directly from Return file
     return_quantity_col = find_column(Return, ['Return quantity', 'return quantity', 'quantity', 'qty', 'returned qty'])
     if return_quantity_col:
         Return[return_quantity_col] = pd.to_numeric(Return[return_quantity_col], errors='coerce')
         total_return_quantity = Return[return_quantity_col].sum()
     else:
         total_return_quantity = 0
-
 
     total_amz_fees = merged_data['Amz Fees'].sum()
 
@@ -467,7 +467,7 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         raise Exception("❌ 'dynamic_expenses' must be a dictionary, e.g. {'Ad Cost': 1000, 'Office Rent': 2000}")
 
     total_expense = sum(dynamic_expenses.values())
-    net_profit = total_payment - (total_cost + total_expense)
+    net_profit = total_payment - (total_cost + total_expense) # Note: Your old code had total_packing
 
     # --- 10. Prepare dynamic summary table ---
     summary_rows = [
@@ -479,17 +479,15 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         ('Total Unpaid Orders', total_unpaid_orders)
     ]
 
-
     # Add dynamic user expenses
     for name, value in dynamic_expenses.items():
         summary_rows.append((name, value))
 
     # Add final Net Profit
     summary_rows.append(('Net Profit', net_profit))
-
     summary_data = pd.DataFrame(summary_rows, columns=['Metric', 'Value'])
 
-    # --- 11. Reorder Columns ---
+    # --- 11. Reorder Columns for Final Report ---
     cols = [
         'amazon-order-id', 'order_date', 'sku', 
         'quantity', 'total', 'Product Cost', 'Total Cost', 
@@ -497,38 +495,33 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     ]
     final_cols = [col for col in cols if col in merged_data.columns]
     merged_data = merged_data[final_cols]
-    
     print("📈 Columns successfully ordered.")
 
-    # --- 12. Save to Excel ---
-    current_date = datetime.now().strftime('%d-%B-%Y-%H-%M')
-    file_name = f"{current_date}.xlsx"
-    output_path = os.path.join(output_folder, file_name)
-
-    # --- ⭐ ADVANCED ML: SKU HEALTH SCORE ANALYSIS ⭐ ---
+    # --- 12. Run Advanced ML SKU Health Score ---
     try:
         print("🤖 Training Advanced SKU Health Score Model...")
-
         sku_health_output = build_and_score_sku_health(
             merged_data=merged_data,
             Return=Return,
             unpaid_orders=unpaid_orders,
             output_dir=output_folder
         )
-
         sku_health_df = sku_health_output['scored_df']
         model_metrics = sku_health_output['train_metrics']
         feature_importances = sku_health_output['importances']
-
-        print(f"🎯 SKU Health Model Trained | R²={model_metrics['r2']:.3f} | RMSE={model_metrics['rmse']:.3f}")
-
+        print(f"🎯 SKU Health Model Trained | R²={model_metrics.get('r2', 'N/A'):.3f} | RMSE={model_metrics.get('rmse', 'N/A'):.3f}")
         print("💡 Top Important Features:")
         print(feature_importances.head(10))
-
     except Exception as e:
         print(f"⚠️ SKU Health Score Model Failed: {e}")
         sku_health_df = pd.DataFrame()
         
+    # --- 13. Save to Excel ---
+    print("--- 9. Saving Final Report ---")
+    current_date = datetime.now().strftime('%d-%B-%Y-%H-%M')
+    file_name = f"{current_date}.xlsx"
+    output_path = os.path.join(output_folder, file_name)
+
     with pd.ExcelWriter(output_path) as writer:
         merged_data.to_excel(writer, sheet_name='Merged Data', index=False)
         summary_data.to_excel(writer, sheet_name='Summary', index=False)
@@ -538,8 +531,5 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         unpaid_orders.to_excel(writer, sheet_name='Unpaid Orders', index=False)
         sku_health_df.to_excel(writer, sheet_name='SKU Health Score', index=False)
 
-
     print(f"✅ Processing complete. File saved at: {output_path}")
     return file_name
-
-
