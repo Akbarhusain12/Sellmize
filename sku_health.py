@@ -707,12 +707,20 @@ def analyze_sku_health(merged_data: pd.DataFrame,
     logger.info("SKU health analysis complete!")
     logger.info(f"Score range: {scored_df['health_score_pred'].min():.2f} - {scored_df['health_score_pred'].max():.2f}")
     
+    # Convert metrics dataclass → dict so Flask can safely read it
+    metrics_dict = {
+        "r2": model_obj["metrics"].r2,
+        "rmse": model_obj["metrics"].rmse,
+        "mae": model_obj["metrics"].mae
+    }
+
     return SKUHealthResult(
         scored_df=scored_df,
         model_obj=model_obj,
-        train_metrics=model_obj["metrics"],
+        train_metrics=metrics_dict,
         importances=model_obj["importances"]
     )
+
 
 
 # Maintain backward compatibility with original function name
