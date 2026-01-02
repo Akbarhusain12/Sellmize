@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MarketLens - SellMize AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+            },
+            colors: {
+              brand: {
+                50: "#eef2ff",
+                100: "#e0e7ff",
+                200: "#c7d2fe",
+                300: "#a5b4fc",
+                400: "#818cf8",
+                500: "#6366f1", // Indigo Primary
+                600: "#4f46e5",
+                700: "#4338ca",
+                800: "#3730a3",
+                900: "#312e81",
+              },
+              slate: {
+                850: "#1e293b",
+              },
+            },
+          },
+        },
+      };
+    </script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+      }
+
+      /* --- 1. HIDE SCROLLBAR (Fixed) --- */
+      #chat-messages::-webkit-scrollbar {
+        display: none;
+      }
+      #chat-messages {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
+      /* Typography */
+      .report-content {
+        color: #334155;
+        font-size: 0.95rem;
+        line-height: 1.7;
+      }
+      .report-content h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin-top: 1.5rem;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        padding-bottom: 0.5rem;
+      }
+      .report-content h2 {
+        font-size: 1.15rem;
+        font-weight: 600;
+        color: #4f46e5;
+        margin-top: 1.75rem;
+        margin-bottom: 0.75rem;
+      }
+      .report-content h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #475569;
+        margin-top: 1.25rem;
+        margin-bottom: 0.5rem;
+      }
+      .report-content p {
+        margin-bottom: 1rem;
+      }
+      .report-content ul,
+      .report-content ol {
+        margin-bottom: 1rem;
+        padding-left: 1.5rem;
+      }
+      .report-content li {
+        margin-bottom: 0.5rem;
+      }
+      .report-content ul li {
+        list-style-type: disc;
+        marker: #4f46e5;
+      }
+      .report-content strong {
+        color: #1e293b;
+        font-weight: 600;
+      }
+
+      /* Table Styling */
+      .report-content table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin: 1.5rem 0;
+        font-size: 0.9rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        overflow: hidden;
+      }
+      .report-content th {
+        background: #f8fafc;
+        color: #334155;
+        font-weight: 600;
+        text-align: left;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      .report-content td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #f1f5f9;
+        color: #475569;
+      }
+      .report-content tr:last-child td {
+        border-bottom: none;
+      }
+      .report-content tr:nth-child(even) {
+        background-color: #fcfcfc;
+      }
+
+      /* Animations */
+      .message-enter {
+        animation: slideUpFade 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      @keyframes slideUpFade {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .typing-dot {
+        animation: typing 1.4s infinite ease-in-out both;
+      }
+      .typing-dot:nth-child(1) {
+        animation-delay: -0.32s;
+      }
+      .typing-dot:nth-child(2) {
+        animation-delay: -0.16s;
+      }
+      @keyframes typing {
+        0%,
+        80%,
+        100% {
+          transform: scale(0.6);
+          opacity: 0.4;
+        }
+        40% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+
+  <body
+    class="bg-slate-50 h-screen flex flex-col overflow-hidden text-slate-900"
+  >
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
+      <nav
+        class="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between"
+      >
+        <div class="flex items-center gap-3">
+          <div
+            class="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center shadow-sm"
+          >
+            <svg
+              class="w-5 h-5 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2.5"
+                d="M13 10V3L4 14h7v7l9-11h-7z"
+              ></path>
+            </svg>
+          </div>
+          <span class="text-xl font-bold text-slate-900 tracking-tight"
+            >SellMize AI</span
+          >
+        </div>
+
+        <div class="hidden md:flex items-center space-x-8">
+          <a
+            href="/"
+            class="text-slate-600 hover:text-brand-600 font-medium transition-colors"
+            >Dashboard</a
+          >
+          <a
+            href="/analyzer"
+            class="text-slate-600 hover:text-brand-600 font-medium transition-colors"
+            >Profit Analyzer</a
+          >
+          <a
+            href="/marketlens"
+            class="text-brand-600 font-medium transition-colors"
+            >MarketLens</a
+          >
+          <a
+            href="/content-generator"
+            class="text-slate-600 hover:text-brand-600 font-medium transition-colors"
+            >Content Gen</a
+          >
+        </div>
+
+        <div class="flex items-center gap-4">
+          <div class="hidden md:flex items-center gap-2">
+            <button id="mobileMenuBtn" class="md:hidden p-2 text-slate-500">
+              <i class="ph ph-list text-xl"></i>
+            </button>
+          </div>
+          <div
+            class="w-9 h-9 bg-brand-100 text-brand-700 rounded-full flex items-center justify-center font-semibold text-sm border border-brand-200"
+          >
+            U
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main
+      class="flex-1 container mx-auto max-w-5xl px-4 py-6 flex flex-col h-full overflow-hidden relative"
+    >
+      <div
+        id="chat-messages"
+        class="flex-1 overflow-y-auto px-2 py-4 space-y-8"
+      >
+        <div
+          id="welcome-state"
+          class="flex flex-col items-center justify-center h-full px-4"
+        >
+          <div
+            class="w-20 h-20 bg-white border border-slate-100 rounded-3xl flex items-center justify-center mb-8 shadow-sm ring-4 ring-slate-50/50"
+          >
+            <i class="ph-duotone ph-brain text-4xl text-brand-600"></i>
+          </div>
+
+          <h2
+            class="text-4xl font-extrabold text-slate-900 mb-4 text-center tracking-tight"
+          >
+            One Agent.
+            <span
+              class="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-violet-600"
+              >Infinite Insights.</span
+            >
+          </h2>
+          <p
+            class="text-slate-500 text-center max-w-2xl mb-12 text-lg leading-relaxed"
+          >
+            Your all-in-one AI partner for market intelligence, product
+            sourcing, and competitive strategy.
+          </p>
+
+          <div class="grid md:grid-cols-3 gap-5 w-full max-w-5xl">
+            <button
+              onclick="setInput('What are the best selling gaming laptops under 60k?')"
+              class="group relative bg-white p-6 rounded-2xl border border-slate-200 hover:border-brand-300 hover:shadow-lg hover:shadow-brand-100/50 transition-all duration-300 text-left"
+            >
+              <div
+                class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300"
+              >
+                <i class="ph-duotone ph-shopping-cart text-2xl"></i>
+              </div>
+              <h3 class="font-bold text-slate-900 text-lg mb-2">
+                Find Products
+              </h3>
+              <p class="text-sm text-slate-500 font-medium">
+                Discover top-rated items, compare specs, and check prices.
+              </p>
+            </button>
+
+            <button
+              onclick="setInput('Is the coffee dropshipping market saturated in 2025?')"
+              class="group relative bg-white p-6 rounded-2xl border border-slate-200 hover:border-brand-300 hover:shadow-lg hover:shadow-brand-100/50 transition-all duration-300 text-left"
+            >
+              <div
+                class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300"
+              >
+                <i class="ph-duotone ph-trend-up text-2xl"></i>
+              </div>
+              <h3 class="font-bold text-slate-900 text-lg mb-2">
+                Market Trends
+              </h3>
+              <p class="text-sm text-slate-500 font-medium">
+                Analyze niche viability, growth trends, and business risks.
+              </p>
+            </button>
+
+            <button
+              onclick="setInput('Compare iPhone 15 vs Samsung S23 for content creation')"
+              class="group relative bg-white p-6 rounded-2xl border border-slate-200 hover:border-brand-300 hover:shadow-lg hover:shadow-brand-100/50 transition-all duration-300 text-left"
+            >
+              <div
+                class="w-12 h-12 bg-violet-50 text-violet-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300"
+              >
+                <i class="ph-duotone ph-scales text-2xl"></i>
+              </div>
+              <h3 class="font-bold text-slate-900 text-lg mb-2">Comparisons</h3>
+              <p class="text-sm text-slate-500 font-medium">
+                Get side-by-side breakdowns of features and value.
+              </p>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-6 pb-2 bg-slate-50">
+        <div
+          class="bg-white rounded-xl border border-slate-200 shadow-sm p-1.5 mx-auto max-w-4xl relative focus-within:ring-2 focus-within:ring-brand-500/20 focus-within:border-brand-500 transition-all"
+        >
+          <textarea
+            id="user-input"
+            rows="1"
+            placeholder="Ask about products, markets, or strategy..."
+            class="w-full bg-transparent text-slate-800 text-sm p-3 pr-14 outline-none resize-none max-h-32 rounded-lg"
+            onkeydown="handleKeyPress(event)"
+            oninput="autoResize(this)"
+          ></textarea>
+
+          <button
+            onclick="sendMessage()"
+            id="send-btn"
+            class="absolute right-2 bottom-2 p-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <i class="ph-bold ph-paper-plane-right text-lg"></i>
+          </button>
+        </div>
+
+        <div
+          class="flex items-center justify-between px-3 mt-2 max-w-4xl mx-auto"
+        >
+          <div class="flex items-center gap-3">
+            <span
+              class="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-400 font-semibold"
+            >
+              <div
+                class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"
+              ></div>
+              Smart Intent Detection Active
+            </span>
+          </div>
+          <span class="text-[10px] text-slate-400 font-medium"
+            >Shift + Enter for new line</span
+          >
+        </div>
+      </div>
+    </main>
+
+    <script>
+      // Navigation Logic
+      const mobileMenuBtn = document.getElementById("mobileMenuBtn");
+      if (mobileMenuBtn) {
+        mobileMenuBtn.addEventListener("click", function () {
+          // Add your mobile menu toggle logic here if needed
+          const menu = document.getElementById("mobileMenu");
+          if (menu) menu.classList.toggle("hidden");
+        });
+      }
+
+      // Chat Logic
+      const chatContainer = document.getElementById("chat-messages");
+      const userInput = document.getElementById("user-input");
+      const sendBtn = document.getElementById("send-btn");
+      const welcomeState = document.getElementById("welcome-state");
+
+      function autoResize(textarea) {
+        textarea.style.height = "auto";
+        textarea.style.height = Math.min(textarea.scrollHeight, 128) + "px";
+      }
+
+      function handleKeyPress(event) {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          sendMessage();
+        }
+      }
+
+      function setInput(text) {
+        userInput.value = text;
+        userInput.focus();
+        autoResize(userInput);
+      }
+
+      function scrollToBottom() {
+        setTimeout(() => {
+          chatContainer.scrollTo({
+            top: chatContainer.scrollHeight,
+            behavior: "smooth",
+          });
+        }, 100);
+      }
+
+      function hideWelcome() {
+        if (welcomeState && welcomeState.style.display !== "none") {
+          welcomeState.style.display = "none";
+        }
+      }
+
+      function getCurrentTime() {
+        return new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+
+      function appendMessage(sender, content) {
+        hideWelcome();
+        const messageDiv = document.createElement("div");
+        messageDiv.className = "w-full message-enter";
+
+        if (sender === "user") {
+          messageDiv.innerHTML = `
+            <div class="flex justify-end gap-3 ml-12 mb-6">
+              <div class="bg-brand-600 text-white px-5 py-3 rounded-2xl rounded-tr-sm shadow-sm max-w-2xl">
+                <p class="text-sm leading-relaxed font-medium">${content}</p>
+              </div>
+              <div class="flex-shrink-0 w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 text-xs font-bold border border-slate-300">
+                U
+              </div>
+            </div>
+          `;
+        } else {
+          // AI Message Structure
+          messageDiv.innerHTML = `
+            <div class="flex gap-4 max-w-4xl mx-auto mb-8">
+              <div class="flex-shrink-0 flex flex-col items-center gap-2">
+                <div class="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center shadow-sm">
+                   <i class="ph ph-robot text-brand-600 text-lg"></i>
+                </div>
+              </div>
+              
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-slate-700">MarketLens Report</span>
+                    <span class="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">${getCurrentTime()}</span>
+                  </div>
+                  <div class="flex gap-1">
+                    <button class="copy-btn text-slate-400 hover:text-brand-600 p-1 rounded hover:bg-slate-100 transition-colors" title="Copy Response">
+                      <i class="ph ph-copy"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6 md:p-8 report-content">
+                  ${content}
+                </div>
+              </div>
+            </div>
+          `;
+
+          // --- ATTACH COPY FUNCTIONALITY ---
+          const copyBtn = messageDiv.querySelector(".copy-btn");
+          if (copyBtn) {
+            copyBtn.addEventListener("click", function () {
+              // Get the text content from the report div
+              const reportText =
+                messageDiv.querySelector(".report-content").innerText;
+
+              // Copy to clipboard
+              navigator.clipboard
+                .writeText(reportText)
+                .then(() => {
+                  // Visual Feedback: Change Icon to Checkmark
+                  const icon = copyBtn.querySelector("i");
+                  icon.classList.remove("ph-copy");
+                  icon.classList.add(
+                    "ph-check",
+                    "text-emerald-500",
+                    "font-bold"
+                  );
+
+                  // Revert back after 2 seconds
+                  setTimeout(() => {
+                    icon.classList.remove(
+                      "ph-check",
+                      "text-emerald-500",
+                      "font-bold"
+                    );
+                    icon.classList.add("ph-copy");
+                  }, 2000);
+                })
+                .catch((err) => {
+                  console.error("Failed to copy text: ", err);
+                });
+            });
+          }
+        }
+
+        chatContainer.appendChild(messageDiv);
+        scrollToBottom();
+      }
+
+      function showTyping() {
+        hideWelcome();
+        const id = "typing-" + Date.now();
+        const div = document.createElement("div");
+        div.id = id;
+        div.className = "w-full message-enter mb-6";
+        div.innerHTML = `
+          <div class="flex gap-4 max-w-4xl mx-auto">
+              <div class="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center shadow-sm">
+                <i class="ph ph-robot text-brand-600 text-lg"></i>
+             </div>
+             <div class="flex items-center gap-3 bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-sm">
+                <div class="flex gap-1">
+                  <div class="w-1.5 h-1.5 bg-brand-400 rounded-full typing-dot"></div>
+                  <div class="w-1.5 h-1.5 bg-brand-600 rounded-full typing-dot"></div>
+                  <div class="w-1.5 h-1.5 bg-brand-400 rounded-full typing-dot"></div>
+                </div>
+                <span class="text-xs font-medium text-slate-500">Analyzing query...</span>
+             </div>
+          </div>
+        `;
+        chatContainer.appendChild(div);
+        scrollToBottom();
+        return id;
+      }
+
+      function removeTyping(id) {
+        const el = document.getElementById(id);
+        if (el) el.remove();
+      }
+
+      // --- Main Message Logic (Unified) ---
+      async function sendMessage() {
+        const message = userInput.value.trim();
+        if (!message) return;
+
+        appendMessage("user", message);
+        userInput.value = "";
+        userInput.style.height = "auto";
+        sendBtn.disabled = true;
+        userInput.disabled = true;
+
+        const typingId = showTyping();
+
+        try {
+          // Unified Endpoint Call
+          const response = await fetch("/marketlens", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query: message }), // Always send as 'query'
+          });
+
+          const data = await response.json();
+          removeTyping(typingId);
+
+          if (data.success) {
+            // 1. Render Product Cards (if available from Product Scout)
+            if (data.products && data.products.length > 0) {
+              const cardsContainer = document.createElement("div");
+              cardsContainer.className =
+                "flex gap-4 overflow-x-auto pb-4 mb-4 snap-x";
+
+              data.products.forEach((product) => {
+                const features =
+                  product.features || product.specifications || [];
+                const featureList = Array.isArray(features)
+                  ? features
+                      .slice(0, 2)
+                      .map(
+                        (f) =>
+                          `<li class="text-xs text-slate-500 truncate">• ${f}</li>`
+                      )
+                      .join("")
+                  : "";
+
+                const currency =
+                  product.currency === "INR"
+                    ? "₹"
+                    : product.currency === "USD"
+                    ? "$"
+                    : product.currency;
+                const priceDisplay = product.price
+                  ? `${currency}${product.price.toLocaleString()}`
+                  : "N/A";
+
+                const cardHTML = `
+                  <div class="min-w-[260px] max-w-[260px] bg-white rounded-xl border border-slate-200 shadow-sm p-4 snap-center hover:shadow-md transition-shadow">
+                    <div class="flex justify-between items-start mb-2">
+                      <span class="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">${
+                        product.brand || "Item"
+                      }</span>
+                      <div class="flex items-center gap-1 text-amber-500 text-xs font-bold">
+                        <i class="ph-fill ph-star"></i> ${
+                          product.rating || "4.0"
+                        }
+                      </div>
+                    </div>
+                    <h3 class="font-bold text-slate-900 text-sm mb-1 line-clamp-2 h-10 leading-tight" title="${
+                      product.name
+                    }">${product.name}</h3>
+                    <div class="text-brand-600 font-extrabold text-lg mb-3">
+                      ${priceDisplay}
+                    </div>
+                    <ul class="mb-4 space-y-1 h-12 overflow-hidden">
+                      ${featureList}
+                    </ul>
+                    <a href="https://www.google.com/search?q=buy+${encodeURIComponent(
+                      product.name
+                    )}" target="_blank" 
+                       class="block w-full bg-slate-900 hover:bg-brand-600 text-white text-center text-xs font-bold py-2.5 rounded-lg transition-colors">
+                       View Details
+                    </a>
+                  </div>
+                `;
+                cardsContainer.innerHTML += cardHTML;
+              });
+
+              const wrapper = document.createElement("div");
+              wrapper.className =
+                "w-full message-enter mb-2 pl-0 md:pl-12 max-w-4xl mx-auto";
+              wrapper.appendChild(cardsContainer);
+              chatContainer.appendChild(wrapper);
+            }
+
+            // 2. Render Markdown Report
+            const reportContent = data.report || data.analysis || "";
+            const htmlContent = marked.parse(reportContent);
+            appendMessage("ai", htmlContent);
+          } else {
+            appendMessage(
+              "ai",
+              `<div class="text-red-600 bg-red-50 p-4 rounded-lg border border-red-100 text-sm font-medium">Error: ${data.error}</div>`
+            );
+          }
+        } catch (error) {
+          removeTyping(typingId);
+          appendMessage(
+            "ai",
+            "<div class='text-red-600 bg-red-50 p-4 rounded-lg border border-red-100 text-sm font-medium'>Connection error. Please try again.</div>"
+          );
+          console.error(error);
+        } finally {
+          sendBtn.disabled = false;
+          userInput.disabled = false;
+          userInput.focus();
+        }
+      }
+
+      userInput.focus();
+    </script>
+  </body>
+</html>
