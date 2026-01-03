@@ -18,7 +18,7 @@ import logging
 from datetime import timedelta
 import shutil
 import tempfile
-from DB.db import database 
+from DB.db import database, init_app
 from DB.models import *
 from DB.db_writer import save_full_analysis
 from sqlalchemy import func, desc
@@ -49,7 +49,7 @@ else:
 app.secret_key = SECRET_KEY
 app.config.from_object(Config)
 
-database.init_app(app)
+init_app(app)
 
 # ============================================================================
 # 🔥 SESSION CONFIGURATION
