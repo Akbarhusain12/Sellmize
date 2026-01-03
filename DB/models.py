@@ -4,11 +4,10 @@ from DB.db import database as db
 from sqlalchemy.dialects.postgresql import UUID, JSON
 from sqlalchemy import UniqueConstraint
 
-SCHEMA = "sellmize"
 
 class Analysis(db.Model):
     __tablename__ = "analyses"
-    __table_args__ = {"schema": SCHEMA}
+    
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -31,7 +30,6 @@ class Transaction(db.Model):
     __tablename__ = "transactions"
     __table_args__ = (
         db.PrimaryKeyConstraint('amazon_order_id', 'sku', 'analysis_id'),
-        {"schema": SCHEMA}
     )
 
     # Composite primary key fields
@@ -41,7 +39,7 @@ class Transaction(db.Model):
     # Foreign key (also part of composite PK to ensure referential integrity)
     analysis_id = db.Column(
         UUID(as_uuid=True),
-        db.ForeignKey(f"{SCHEMA}.analyses.id"),
+        db.ForeignKey("analyses.id"),
         nullable=False
     )
     
@@ -60,13 +58,12 @@ class SummaryMetric(db.Model):
     __tablename__ = "summary_metrics"
     __table_args__ = (
         UniqueConstraint('analysis_id', 'metric', name='uq_analysis_metric'),
-        {"schema": SCHEMA}
     )
 
     id = db.Column(db.Integer, primary_key=True)
     analysis_id = db.Column(
         UUID(as_uuid=True),
-        db.ForeignKey(f"{SCHEMA}.analyses.id"),
+        db.ForeignKey("analyses.id"),
         nullable=False
     )
 
@@ -76,12 +73,12 @@ class SummaryMetric(db.Model):
 
 class TopSKU(db.Model):
     __tablename__ = "top_skus"
-    __table_args__ = {"schema": SCHEMA}
+    
 
     id = db.Column(db.Integer, primary_key=True)
     analysis_id = db.Column(
         UUID(as_uuid=True),
-        db.ForeignKey(f"{SCHEMA}.analyses.id"),
+        db.ForeignKey("analyses.id"),
         nullable=False
     )
 
@@ -92,12 +89,12 @@ class TopSKU(db.Model):
 
 class TopReturn(db.Model):
     __tablename__ = "top_returns"
-    __table_args__ = {"schema": SCHEMA}
+    
 
     id = db.Column(db.Integer, primary_key=True)
     analysis_id = db.Column(
         UUID(as_uuid=True),
-        db.ForeignKey(f"{SCHEMA}.analyses.id"),
+        db.ForeignKey("analyses.id"),
         nullable=False
     )
 
@@ -109,12 +106,12 @@ class TopReturn(db.Model):
 
 class StateSales(db.Model):
     __tablename__ = "state_sales"
-    __table_args__ = {"schema": SCHEMA}
+    
 
     id = db.Column(db.Integer, primary_key=True)
     analysis_id = db.Column(
         UUID(as_uuid=True),
-        db.ForeignKey(f"{SCHEMA}.analyses.id"),
+        db.ForeignKey("analyses.id"),
         nullable=False
     )
 

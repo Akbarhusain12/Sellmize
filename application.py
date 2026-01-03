@@ -19,6 +19,7 @@ from datetime import timedelta
 import shutil
 import tempfile
 from DB.db import database, init_app
+db = database
 from DB.models import *
 from DB.db_writer import save_full_analysis
 from sqlalchemy import func, desc
@@ -854,7 +855,7 @@ if __name__ == '__main__':
     # 1. Create the tables if they don't exist
     with app.app_context():
         # This is CRITICAL. It looks at your imported models and creates the tables.
-        database.create_all()
+        db.create_all()
         print("✅ Database tables created (if they didn't exist).")
 
     # 2. Wipe old sessions (Your existing code)
