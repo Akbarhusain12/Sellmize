@@ -52,6 +52,9 @@ app.config.from_object(Config)
 
 init_app(app)
 
+with app.app_context():
+    db.create_all()
+        
 # ============================================================================
 # 🔥 SESSION CONFIGURATION
 # ============================================================================
@@ -854,7 +857,6 @@ def unified_market_api():
 if __name__ == '__main__':
     # 1. Create the tables if they don't exist
     with app.app_context():
-        # This is CRITICAL. It looks at your imported models and creates the tables.
         db.create_all()
         print("✅ Database tables created (if they didn't exist).")
 
