@@ -1,11 +1,13 @@
 import requests
 import json
+import logging
 from typing import Any, List, Optional, Dict
 from langchain_core.callbacks.manager import CallbackManagerForLLMRun
 from langchain_core.language_models.llms import LLM
 from langchain_community.tools import DuckDuckGoSearchRun
 
-# --- 1. Custom LangChain Wrapper for Pollinations (The "Engine") ---
+logger = logging.getLogger(__name__)
+
 # --- 1. Custom LangChain Wrapper for Pollinations (The "Engine") ---
 class PollinationsLLM(LLM):
     """
@@ -56,13 +58,13 @@ class MarketAwareAgent:
     def __init__(self):
         self.llm = PollinationsLLM()
         self.search = DuckDuckGoSearchRun()
-        print("✓ Agent Initialized with Market Search Capabilities")
+        logger.info("MarketAwareAgent initialized")
 
     def analyze_market(self, product_name: str, category: str) -> str:
         """
         Searches Amazon listings to find winning keywords.
         """
-        print(f"   ⟳ Searching market trends for: {product_name}...")
+        logger.info(f"   ⟳ Searching market trends for: {product_name}...")
         
         # specific query to target Amazon listings
         query = f"site:amazon.in {product_name} {category} best selling product features description"
@@ -72,7 +74,7 @@ class MarketAwareAgent:
             search_results = self.search.invoke(query)
             return search_results
         except Exception as e:
-            print(f"   ! Search failed: {e}")
+            logger.warning(f"Search failed: {e}")
             return "No market data available."
 
     def generate_listing(self, attributes: Dict[str, str]) -> Dict:
@@ -122,7 +124,7 @@ class MarketAwareAgent:
         """
 
         # Step 3: Generate
-        print("   ⟳ Synthesizing listing with market data...")
+        logger.info("   ⟳ Synthesizing listing with market data...")
         response_text = self.llm.invoke(prompt)
         
         # Step 4: Robust JSON Parsing
@@ -177,6 +179,7 @@ def generate_product_content(attributes: dict) -> dict:
         }
 
     except Exception as e:
+        logger.error(f"Content service error: {e}")
         return {
             "success": False,
             "error": f"Agent Error: {str(e)}"

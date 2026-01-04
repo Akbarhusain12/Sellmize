@@ -4,15 +4,17 @@ from datetime import datetime
 import warnings
 import os
 import chardet
+import logging
+logger = logging.getLogger(__name__)
 
 # Attempt to import the custom ML module, but don't fail if it's not present
 try:
-    from sku_health import build_and_score_sku_health
+    from app.ml.sku_health import build_and_score_sku_health
 except ImportError:
-    print("Warning: 'sku_health' module not found. SKU Health Score will be skipped.")
+    logger.warning("Warning: 'sku_health' module not found. SKU Health Score will be skipped.")
     # Define a placeholder function if the import fails
     def build_and_score_sku_health(*args, **kwargs):
-        print("SKU Health module not available, skipping analysis.")
+        logger.warning("SKU Health module not available, skipping analysis.")
         return {
             'scored_df': pd.DataFrame(),
             'train_metrics': {},
@@ -51,7 +53,7 @@ def convert_txt_to_excel(txt_file_path, output_folder):
         result = chardet.detect(raw_data)
         detected_encoding = result['encoding'] or 'utf-8'
         confidence = result.get('confidence', 0)
-    print(f"🔍 Detected encoding for {os.path.basename(txt_file_path)}: {detected_encoding} (confidence={confidence:.2f})")
+    logger.warning(f"🔍 Detected encoding for {os.path.basename(txt_file_path)}: {detected_encoding} (confidence={confidence:.2f})")
 
     # --- 2. Detect delimiter ---
     try:
@@ -88,7 +90,7 @@ def convert_txt_to_excel(txt_file_path, output_folder):
                     encoding=fallback,
                     on_bad_lines='skip'
                 )
-                print(f"⚙️ Fallback to encoding: {fallback}")
+                logger.warning(f"⚙️ Fallback to encoding: {fallback}")
                 break
             except Exception:
                 continue
@@ -103,7 +105,7 @@ def convert_txt_to_excel(txt_file_path, output_folder):
     base_name = os.path.splitext(os.path.basename(txt_file_path))[0]
     excel_path = os.path.join(output_folder, f"{base_name}.xlsx")
     df.to_excel(excel_path, index=False)
-    print(f"📄 Converted {ext.upper()} → Excel: {excel_path} | {df.shape[0]} rows, {df.shape[1]} columns (encoding={detected_encoding})")
+    logger.warning(f"📄 Converted {ext.upper()} → Excel: {excel_path} | {df.shape[0]} rows, {df.shape[1]} columns (encoding={detected_encoding})")
 
     return excel_path
 
@@ -137,7 +139,7 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     """
 
     # --- 1. Load Data (with TXT-to-Excel conversion) ---
-    print("--- 1. Loading Data ---")
+    logger.warning("--- 1. Loading Data ---")
     try:
         # Convert text-based order files to Excel
         converted_order_files = []
@@ -178,7 +180,7 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         raise Exception(f"❌ Error reading input files: {e}")
 
     # --- 2. Find Columns and Filter by Date ---
-    print("--- 2. Finding Columns & Filtering Dates ---")
+    logger.warning("--- 2. Finding Columns & Filtering Dates ---")
     
     # Find all required columns from the orders file at the start
     order_id_col = find_column(orders, ['amazon-order-id', 'order-id', 'order id', 'orderid', 'amazon order id'])
@@ -250,13 +252,13 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
                 end_dt = pd.to_datetime(end_date).date()
                 filtered_orders = filtered_orders[filtered_orders['order_date'] <= end_dt]
 
-            print(f"📅 Date filtering applied: {len(filtered_orders)} records remain "
+            logger.warning(f"📅 Date filtering applied: {len(filtered_orders)} records remain "
                   f"from {start_date or 'start'} to {end_date or 'end'}.")
 
         except Exception as e:
-            print(f"⚠️ Date filtering skipped due to error: {e}")
+            logger.warning(f"⚠️ Date filtering skipped due to error: {e}")
     else:
-        print("⚠️ No valid 'order_date' column found for date filtering.")
+        logger.warning("⚠️ No valid 'order_date' column found for date filtering.")
     
     # --- Date Filtering (Returns) ---
     return_date_col = find_column(Return, [
@@ -275,14 +277,14 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
                 end_dt = pd.to_datetime(end_date).date()
                 Return = Return[Return[return_date_col] <= end_dt]
 
-            print(f"🔄 Return file filtered by {return_date_col}: {len(Return)} records remain.")
+            logger.warning(f"🔄 Return file filtered by {return_date_col}: {len(Return)} records remain.")
         except Exception as e:
-            print(f"⚠️ Could not filter Return file by date ({return_date_col}): {e}")
+            logger.warning(f"⚠️ Could not filter Return file by date ({return_date_col}): {e}")
     else:
-        print("⚠️ No valid 'Return request date' column found or all values are missing in Return file.")
+        logger.warning("⚠️ No valid 'Return request date' column found or all values are missing in Return file.")
 
     # --- 3. Pre-Merge Analysis (Top 10s) ---
-    print("--- 3. Running Pre-Merge Analysis ---")
+    logger.warning("--- 3. Running Pre-Merge Analysis ---")
     
     # --- TOP 10 RETURNED SKUs Analysis ---
     return_sku_col = find_column(Return, ['Merchant SKU', 'merchant sku', 'sku', 'SKU', 'product-sku'])
@@ -299,11 +301,11 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         top_10_returns = top_10_returns_grouped.sort_values('quantity', ascending=False).head(10).reset_index(drop=True)
         top_10_returns.insert(0, 'Rank', range(1, len(top_10_returns) + 1))
     else:
-        print(f"Warning: Could not find return columns. Found: {Return.columns.tolist()}")
+        logger.warning(f"Warning: Could not find return columns. Found: {Return.columns.tolist()}")
         top_10_returns = pd.DataFrame(columns=['Rank', 'sku', 'quantity', 'category'])
         
     # --- 4. Clean & Merge Core Data ---
-    print("--- 4. Cleaning & Merging Data ---")
+    logger.warning("--- 4. Cleaning & Merging Data ---")
 
     # --- Return file columns ---
     return_order_id_col = find_column(Return, ['Order ID', 'order id', 'orderid', 'order-id'])
@@ -353,7 +355,7 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         'ship_state': 'Ship State'
     }, inplace=True)
     unpaid_orders = unpaid_orders.sort_values(by='Order Date', ascending=False).reset_index(drop=True)
-    print(f"⚠️ Found {len(unpaid_orders)} unpaid orders (present in Orders but missing in Payments).")
+    logger.warning(f"⚠️ Found {len(unpaid_orders)} unpaid orders (present in Orders but missing in Payments).")
     total_unpaid_orders = unpaid_orders['Quantity'].sum()
     
     # --- 4b. Filter to PAID Orders Only ---
@@ -377,7 +379,7 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     merged_data = merged_data[final_keep_cols]
 
     # --- 5. Map Cost Price (on PAID data) ---
-    print("--- 5. Mapping Cost Price ---")
+    logger.warning("--- 5. Mapping Cost Price ---")
     merged_data['sku'] = merged_data['sku'].astype(str).str.strip().str.upper()
     cost_sku_col = find_column(Cost_price, ['SKU', 'sku', 'product-sku', 'product sku'])
     cost_price_col = find_column(Cost_price, ['Product Cost', 'product cost', 'cost', 'price'])
@@ -394,7 +396,7 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     merged_data['Total Cost'] = merged_data['quantity'] * merged_data['Product Cost']
 
     # --- 6. Post-Merge Analysis (Paid Data) ---
-    print("--- 6. Running Post-Merge Analysis ---")
+    logger.warning("--- 6. Running Post-Merge Analysis ---")
 
     # --- TOP 10 STATES by Quantity Analysis ---
     if 'ship_state' in merged_data.columns and merged_data['ship_state'].notna().any():
@@ -406,7 +408,7 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         top_10_states = top_10_states_grouped.sort_values('quantity', ascending=False).head(10).reset_index(drop=True)
         top_10_states.insert(0, 'Rank', range(1, len(top_10_states) + 1))
     else:
-        print("⚠️ No 'ship_state' column found or all values are missing.")
+        logger.warning("⚠️ No 'ship_state' column found or all values are missing.")
         top_10_states = pd.DataFrame(columns=['Rank', 'ship_state', 'quantity'])
 
     # --- TOP 10 SKUs by Quantity Analysis (Paid Orders) ---
@@ -420,7 +422,7 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     top_10_skus.insert(0, 'Rank', range(1, len(top_10_skus) + 1))
 
     # --- 7. Final Merge & Fee Calculation ---
-    print("--- 7. Merging Returns & Fees ---")
+    logger.warning("--- 7. Merging Returns & Fees ---")
     
     # Merge Return Status
     filtered_return['Order ID'] = filtered_return['Order ID'].astype(str)
@@ -444,7 +446,7 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         merged_data['Amz Fees'] = 0
 
     # --- 8. Calculate Final Summary ---
-    print("--- 8. Calculating Final Summary ---")
+    logger.warning("--- 8. Calculating Final Summary ---")
     
     # Filter to non-returned items for profit calculation
     filtered_na = merged_data[merged_data['Status'].isna()]
@@ -495,11 +497,11 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     ]
     final_cols = [col for col in cols if col in merged_data.columns]
     merged_data = merged_data[final_cols]
-    print("📈 Columns successfully ordered.")
+    logger.warning("📈 Columns successfully ordered.")
 
     # --- 12. Run Advanced ML SKU Health Score ---
     try:
-        print("🤖 Training Advanced SKU Health Score Model...")
+        logger.warning("🤖 Training Advanced SKU Health Score Model...")
         sku_health_output = build_and_score_sku_health(
             merged_data=merged_data,
             Return=Return,
@@ -509,15 +511,15 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         sku_health_df = sku_health_output['scored_df']
         model_metrics = sku_health_output['train_metrics']
         feature_importances = sku_health_output['importances']
-        print(f"🎯 SKU Health Model Trained | R²={model_metrics.get('r2', 'N/A'):.3f} | RMSE={model_metrics.get('rmse', 'N/A'):.3f}")
-        print("💡 Top Important Features:")
-        print(feature_importances.head(10))
+        logger.warning(f"🎯 SKU Health Model Trained | R²={model_metrics.get('r2', 'N/A'):.3f} | RMSE={model_metrics.get('rmse', 'N/A'):.3f}")
+        logger.warning("💡 Top Important Features:")
+        logger.warning(feature_importances.head(10))
     except Exception as e:
-        print(f"⚠️ SKU Health Score Model Failed: {e}")
+        logger.warning(f"⚠️ SKU Health Score Model Failed: {e}")
         sku_health_df = pd.DataFrame()
         
     # --- 13. Save to Excel ---
-    print("--- 9. Saving Final Report ---")
+    logger.warning("--- 9. Saving Final Report ---")
     current_date = datetime.now().strftime('%d-%B-%Y-%H-%M')
     file_name = f"{current_date}.xlsx"
     output_path = os.path.join(output_folder, file_name)
@@ -531,5 +533,5 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         unpaid_orders.to_excel(writer, sheet_name='Unpaid Orders', index=False)
         sku_health_df.to_excel(writer, sheet_name='SKU Health Score', index=False)
 
-    print(f"✅ Processing complete. File saved at: {output_path}")
+    logger.warning(f"✅ Processing complete. File saved at: {output_path}")
     return file_name

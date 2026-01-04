@@ -15,7 +15,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Logger Setup
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class UnifiedMarketAgent:

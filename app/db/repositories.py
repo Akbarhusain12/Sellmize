@@ -5,8 +5,8 @@ import pandas as pd
 import logging
 from sqlalchemy import and_
 from sqlalchemy.exc import IntegrityError
-from DB.db import database as db
-from DB.models import (
+from app.db.connection import database as db
+from app.db.models import (
     Analysis,
     SummaryMetric,
     TopSKU,

@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from DB.db import database as db
+from app.db.connection import database as db
 from sqlalchemy.dialects.postgresql import UUID, JSON
 from sqlalchemy import UniqueConstraint
 

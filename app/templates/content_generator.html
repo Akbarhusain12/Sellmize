@@ -134,27 +134,34 @@
           <a href="/" class="nav-item">Dashboard</a>
           <a href="/analyzer" class="nav-item">Profit Analyzer</a>
           <a href="/marketlens" class="nav-item">MarketLens</a>
-          <a href="/content-generator" class="nav-item active">Content Gen</a>
+          <a
+            href="/content"
+            class="text-brand-600 font-medium transition-colors"
+            >Content Gen</a
+          >
         </div>
 
         <div class="flex items-center gap-4">
-          <div class="hidden md:flex items-center gap-2">
-            <button id="mobileMenuBtn" class="md:hidden p-2 text-slate-500">
-              <svg
-                class="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M4 6h16M4 12h16M4 18h16"
-                ></path>
-              </svg>
-            </button>
-          </div>
+          <button
+            class="relative p-2 text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            <svg
+              class="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+              ></path>
+            </svg>
+            <span
+              class="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"
+            ></span>
+          </button>
           <div
             class="w-9 h-9 bg-brand-100 text-brand-700 rounded-full flex items-center justify-center font-semibold text-sm border border-brand-200"
           >
@@ -181,7 +188,7 @@
           >MarketLens</a
         >
         <a
-          href="/content-generator"
+          href="/content"
           class="block px-4 py-2 text-brand-600 bg-brand-50 font-medium"
           >Content Gen</a
         >
@@ -535,12 +542,13 @@
 
     <script>
       // Mobile menu toggle
-      document
-        .getElementById("mobileMenuBtn")
-        .addEventListener("click", function () {
+      const mobileBtn = document.getElementById("mobileMenuBtn");
+      if (mobileBtn) {
+        mobileBtn.addEventListener("click", function () {
           const menu = document.getElementById("mobileMenu");
           menu.classList.toggle("hidden");
         });
+      }
 
       // Form submission
       document
@@ -566,7 +574,7 @@
           const attributes = Object.fromEntries(formData.entries());
 
           try {
-            const res = await fetch("/generate_content", {
+            const res = await fetch("/content/", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ attributes }),

@@ -230,15 +230,18 @@
 
         <div class="hidden md:flex items-center space-x-8">
           <a href="/" class="nav-item">Dashboard</a>
-          <a href="/analyzer" class="nav-item active">Profit Analyzer</a>
+          <a
+            href="/analyzer"
+            class="text-brand-600 font-medium transition-colors"
+            >Profit Analyzer</a
+          >
           <a href="/marketlens" class="nav-item">MarketLens</a>
-          <a href="/content-generator" class="nav-item">Content Gen</a>
+          <a href="/content" class="nav-item">Content Gen</a>
         </div>
 
         <div class="flex items-center gap-4">
           <button
-            id="mobileMenuBtn"
-            class="md:hidden p-2 text-slate-500 hover:text-slate-700"
+            class="relative p-2 text-slate-400 hover:text-slate-600 transition-colors"
           >
             <svg
               class="w-6 h-6"
@@ -250,9 +253,12 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 stroke-width="2"
-                d="M4 6h16M4 12h16M4 18h16"
+                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
               ></path>
             </svg>
+            <span
+              class="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"
+            ></span>
           </button>
           <div
             class="w-9 h-9 bg-brand-100 text-brand-700 rounded-full flex items-center justify-center font-semibold text-sm border border-brand-200"
@@ -280,7 +286,7 @@
           >MarketLens</a
         >
         <a
-          href="/content-generator"
+          href="/content"
           class="block px-4 py-2 text-slate-600 hover:bg-slate-50"
           >Content Gen</a
         >
@@ -903,367 +909,369 @@
     <div id="flash-container"></div>
 
     <script>
-      // Initialize Date Pickers
-      flatpickr("#start_date", { dateFormat: "Y-m-d", theme: "light", maxDate: "today" });
-      flatpickr("#end_date", { dateFormat: "Y-m-d", theme: "light", maxDate: "today" });
+            // Initialize Date Pickers
+            flatpickr("#start_date", { dateFormat: "Y-m-d", theme: "light", maxDate: "today" });
+            flatpickr("#end_date", { dateFormat: "Y-m-d", theme: "light", maxDate: "today" });
 
-      document.addEventListener("DOMContentLoaded", function () {
-          // --- Variable Initialization ---
-          let currentFileName = null;
-          let stateOrdersChart = null;
-          const mobileMenuBtn = document.getElementById("mobileMenuBtn");
-          const mobileMenu = document.getElementById("mobileMenu");
-          const analyzeBtn = document.getElementById("analyzeBtn");
-          const downloadBtn = document.getElementById("downloadBtn");
+            document.addEventListener("DOMContentLoaded", function () {
+                // --- Variable Initialization ---
+                let currentFileName = null;
+                let stateOrdersChart = null;
+                const mobileMenuBtn = document.getElementById("mobileMenuBtn");
+                const mobileMenu = document.getElementById("mobileMenu");
+                const analyzeBtn = document.getElementById("analyzeBtn");
+                const downloadBtn = document.getElementById("downloadBtn");
 
-          // Tabs
-          const tabs = ['orders', 'returns', 'states', 'unpaid', 'health'];
+                // Tabs
+                const tabs = ['orders', 'returns', 'states', 'unpaid', 'health'];
 
-          // --- Helper Functions ---
-          function toggleMobileMenu() { mobileMenu.classList.toggle("hidden"); }
+                // --- Helper Functions ---
+                function toggleMobileMenu() { mobileMenu.classList.toggle("hidden"); }
 
-          function showFlash(message, category) {
-              const flashDiv = document.createElement("div");
-              flashDiv.className = `flash ${category}`;
-              flashDiv.innerHTML = `<span>${message}</span>`;
-              const container = document.getElementById("flash-container");
-              container.appendChild(flashDiv);
-              setTimeout(() => {
-                  flashDiv.classList.add("fade-out");
-                  setTimeout(() => flashDiv.remove(), 300);
-              }, 4000);
-          }
+                function showFlash(message, category) {
+                    const flashDiv = document.createElement("div");
+                    flashDiv.className = `flash ${category}`;
+                    flashDiv.innerHTML = `<span>${message}</span>`;
+                    const container = document.getElementById("flash-container");
+                    container.appendChild(flashDiv);
+                    setTimeout(() => {
+                        flashDiv.classList.add("fade-out");
+                        setTimeout(() => flashDiv.remove(), 300);
+                    }, 4000);
+                }
 
-          function formatCurrency(value) {
-              return "₹" + parseFloat(value).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-          }
-          function formatNumber(value) { return parseFloat(value).toLocaleString("en-IN"); }
+                function formatCurrency(value) {
+                    return "₹" + parseFloat(value).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                }
+                function formatNumber(value) { return parseFloat(value).toLocaleString("en-IN"); }
 
-          function switchTabs(selectedTab) {
-              tabs.forEach(tab => {
-                  document.getElementById(tab + 'Tab').classList.remove("active");
-                  document.getElementById(tab + 'Content').style.display = "none";
-              });
-              document.getElementById(selectedTab + 'Tab').classList.add("active");
-              document.getElementById(selectedTab + 'Content').style.display = "block";
-          }
+                function switchTabs(selectedTab) {
+                    tabs.forEach(tab => {
+                        document.getElementById(tab + 'Tab').classList.remove("active");
+                        document.getElementById(tab + 'Content').style.display = "none";
+                    });
+                    document.getElementById(selectedTab + 'Tab').classList.add("active");
+                    document.getElementById(selectedTab + 'Content').style.display = "block";
+                }
 
-          // --- Dynamic Expenses Logic ---
-          const expenseContainer = document.getElementById("expenseContainer");
-          const addExpenseBtn = document.getElementById("addExpenseBtn");
-          let expenseCount = 0;
+                // --- Dynamic Expenses Logic ---
+                const expenseContainer = document.getElementById("expenseContainer");
+                const addExpenseBtn = document.getElementById("addExpenseBtn");
+                let expenseCount = 0;
 
-          function addExpenseRow(name = "", amount = "") {
-              expenseCount++;
-              const row = document.createElement("div");
-              row.className = "grid grid-cols-2 gap-4 items-center";
-              row.innerHTML = `
-                  <input type="text" name="expense_name_${expenseCount}" placeholder="Expense Name" value="${name}" required
-                      class="rounded-md border-slate-300 shadow-sm focus:border-brand-500 focus:ring-brand-500 text-sm p-2 border">
-                  <div class="flex items-center gap-2">
-                      <input type="number" name="expense_amount_${expenseCount}" placeholder="Amount" value="${amount}" step="0.01" required
-                          class="flex-1 rounded-md border-slate-300 shadow-sm focus:border-brand-500 focus:ring-brand-500 text-sm p-2 border">
-                      <button type="button" class="remove-expense text-slate-400 hover:text-red-500 text-lg font-bold">×</button>
-                  </div>`;
-              expenseContainer.appendChild(row);
-              row.querySelector(".remove-expense").addEventListener("click", () => row.remove());
-          }
-          addExpenseRow(); // Init default
-          addExpenseBtn.addEventListener("click", () => addExpenseRow());
+                function addExpenseRow(name = "", amount = "") {
+                    expenseCount++;
+                    const row = document.createElement("div");
+                    row.className = "grid grid-cols-2 gap-4 items-center";
+                    row.innerHTML = `
+                        <input type="text" name="expense_name_${expenseCount}" placeholder="Expense Name" value="${name}" required
+                            class="rounded-md border-slate-300 shadow-sm focus:border-brand-500 focus:ring-brand-500 text-sm p-2 border">
+                        <div class="flex items-center gap-2">
+                            <input type="number" name="expense_amount_${expenseCount}" placeholder="Amount" value="${amount}" step="0.01" required
+                                class="flex-1 rounded-md border-slate-300 shadow-sm focus:border-brand-500 focus:ring-brand-500 text-sm p-2 border">
+                            <button type="button" class="remove-expense text-slate-400 hover:text-red-500 text-lg font-bold">×</button>
+                        </div>`;
+                    expenseContainer.appendChild(row);
+                    row.querySelector(".remove-expense").addEventListener("click", () => row.remove());
+                }
+                addExpenseRow(); // Init default
+                addExpenseBtn.addEventListener("click", () => addExpenseRow());
 
-          // Pre-submit hook for expenses
-          document.getElementById("uploadForm").addEventListener("submit", () => {
-              const rows = expenseContainer.querySelectorAll("div.grid");
-              rows.forEach((row) => {
-                  const nameInput = row.querySelector(`input[name^='expense_name_']`);
-                  const amountInput = row.querySelector(`input[name^='expense_amount_']`);
-                  const expenseName = nameInput.value.trim().toLowerCase().replace(/\s+/g, "_");
-                  amountInput.name = `expense_${expenseName}`;
-                  nameInput.removeAttribute("name");
-              });
-          });
+                // Pre-submit hook for expenses
+                document.getElementById("uploadForm").addEventListener("submit", () => {
+                    const rows = expenseContainer.querySelectorAll("div.grid");
+                    rows.forEach((row) => {
+                        const nameInput = row.querySelector(`input[name^='expense_name_']`);
+                        const amountInput = row.querySelector(`input[name^='expense_amount_']`);
+                        const expenseName = nameInput.value.trim().toLowerCase().replace(/\s+/g, "_");
+                        amountInput.name = `expense_${expenseName}`;
+                        nameInput.removeAttribute("name");
+                    });
+                });
 
-          // --- Event Listeners ---
+                // --- Event Listeners ---
+                if (mobileMenuBtn) {
           mobileMenuBtn.addEventListener("click", toggleMobileMenu);
-          downloadBtn.addEventListener("click", handleDownloadClick);
-          tabs.forEach(tab => document.getElementById(tab + 'Tab').addEventListener("click", () => switchTabs(tab)));
-          analyzeBtn.addEventListener("click", handleAnalyzeClick);
+      }
+                downloadBtn.addEventListener("click", handleDownloadClick);
+                tabs.forEach(tab => document.getElementById(tab + 'Tab').addEventListener("click", () => switchTabs(tab)));
+                analyzeBtn.addEventListener("click", handleAnalyzeClick);
 
-          // --- Main Logic: Analyze Click ---
-          async function handleAnalyzeClick() {
-              const form = document.getElementById("uploadForm");
-              const formData = new FormData(form);
+                // --- Main Logic: Analyze Click ---
+                async function handleAnalyzeClick() {
+                    const form = document.getElementById("uploadForm");
+                    const formData = new FormData(form);
 
-              // Handle manual expenses for FormData
-              const rows = document.querySelectorAll("#expenseContainer div.grid");
-              rows.forEach((row) => {
-                  const nameInput = row.querySelector(`input[name^='expense_name_']`);
-                  const amountInput = row.querySelector(`input[name^='expense_amount_']`);
-                  const expenseName = nameInput.value.trim().toLowerCase().replace(/\s+/g, "_");
-                  const expenseAmount = amountInput.value;
-                  // clean up raw inputs from form data and append correctly formatted one
-                  formData.delete(nameInput.name);
-                  formData.delete(amountInput.name);
-                  if (expenseName && expenseAmount) formData.append(`expense_${expenseName}`, expenseAmount);
-              });
+                    // Handle manual expenses for FormData
+                    const rows = document.querySelectorAll("#expenseContainer div.grid");
+                    rows.forEach((row) => {
+                        const nameInput = row.querySelector(`input[name^='expense_name_']`);
+                        const amountInput = row.querySelector(`input[name^='expense_amount_']`);
+                        const expenseName = nameInput.value.trim().toLowerCase().replace(/\s+/g, "_");
+                        const expenseAmount = amountInput.value;
+                        // clean up raw inputs from form data and append correctly formatted one
+                        formData.delete(nameInput.name);
+                        formData.delete(amountInput.name);
+                        if (expenseName && expenseAmount) formData.append(`expense_${expenseName}`, expenseAmount);
+                    });
 
-              document.getElementById("analyzeText").textContent = "Analyzing...";
-              document.getElementById("analyzeLoader").style.display = "inline-block";
-              analyzeBtn.disabled = true;
+                    document.getElementById("analyzeText").textContent = "Analyzing...";
+                    document.getElementById("analyzeLoader").style.display = "inline-block";
+                    analyzeBtn.disabled = true;
 
-              try {
-                  const response = await fetch("/analyze", { method: "POST", body: formData });
-                  const result = await response.json();
+                    try {
+                        const response = await fetch("/analyze", { method: "POST", body: formData });
+                        const result = await response.json();
 
-                  if (result.success) {
-                      currentFileName = result.filename;
+                        if (result.success) {
+                            currentFileName = result.filename;
 
-                      // 1. Chart Logic (Theme Update)
-                      if (result.top_states && result.top_states.length > 0) {
-                          const ctx = document.getElementById("stateOrdersChart").getContext("2d");
-                          if (stateOrdersChart) stateOrdersChart.destroy();
+                            // 1. Chart Logic (Theme Update)
+                            if (result.top_states && result.top_states.length > 0) {
+                                const ctx = document.getElementById("stateOrdersChart").getContext("2d");
+                                if (stateOrdersChart) stateOrdersChart.destroy();
 
-                          // INDIGO GRADIENT
-                          const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-                          gradient.addColorStop(0, 'rgba(99, 102, 241, 0.9)');
-                          gradient.addColorStop(1, 'rgba(79, 70, 229, 0.7)');
+                                // INDIGO GRADIENT
+                                const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                                gradient.addColorStop(0, 'rgba(99, 102, 241, 0.9)');
+                                gradient.addColorStop(1, 'rgba(79, 70, 229, 0.7)');
 
-                          stateOrdersChart = new Chart(ctx, {
-                              type: "bar",
-                              data: {
-                                  labels: result.top_states.map(s => s.state),
-                                  datasets: [{
-                                      label: "Orders",
-                                      data: result.top_states.map(s => s.total_orders),
-                                      backgroundColor: gradient,
-                                      borderRadius: 4,
-                                      barThickness: 30
-                                  }]
-                              },
-                              options: {
-                                  responsive: true,
-                                  maintainAspectRatio: false,
-                                  plugins: { legend: { display: false } },
-                                  scales: {
-                                      x: { grid: { display: false }, ticks: { color: "#64748b" } },
-                                      y: { border: { display: false }, grid: { color: "#f1f5f9" }, ticks: { color: "#64748b" } }
-                                  }
-                              }
-                          });
-                      }
+                                stateOrdersChart = new Chart(ctx, {
+                                    type: "bar",
+                                    data: {
+                                        labels: result.top_states.map(s => s.state),
+                                        datasets: [{
+                                            label: "Orders",
+                                            data: result.top_states.map(s => s.total_orders),
+                                            backgroundColor: gradient,
+                                            borderRadius: 4,
+                                            barThickness: 30
+                                        }]
+                                    },
+                                    options: {
+                                        responsive: true,
+                                        maintainAspectRatio: false,
+                                        plugins: { legend: { display: false } },
+                                        scales: {
+                                            x: { grid: { display: false }, ticks: { color: "#64748b" } },
+                                            y: { border: { display: false }, grid: { color: "#f1f5f9" }, ticks: { color: "#64748b" } }
+                                        }
+                                    }
+                                });
+                            }
 
-                      // 2. Summary Cards
-                      document.getElementById("totalQuantity").textContent = formatNumber(result.summary.total_quantity);
-                      document.getElementById("totalReturned").textContent = formatNumber(result.summary.total_return_quantity);
-                      document.getElementById("totalUnpaidOrders").textContent = formatNumber(result.summary.total_unpaid_orders);
-                      document.getElementById("totalPayment").textContent = formatCurrency(result.summary.total_payment);
-                      document.getElementById("totalCost").textContent = formatCurrency(result.summary.total_cost);
+                            // 2. Summary Cards
+                            document.getElementById("totalQuantity").textContent = formatNumber(result.summary.total_quantity);
+                            document.getElementById("totalReturned").textContent = formatNumber(result.summary.total_return_quantity);
+                            document.getElementById("totalUnpaidOrders").textContent = formatNumber(result.summary.total_unpaid_orders);
+                            document.getElementById("totalPayment").textContent = formatCurrency(result.summary.total_payment);
+                            document.getElementById("totalCost").textContent = formatCurrency(result.summary.total_cost);
 
-                      // Net Profit Styling
-                      const netProfit = result.summary.net_profit;
-                      const profitText = document.getElementById("netProfit");
-                      const profitContainer = document.getElementById("netProfitContainer");
-                      profitText.textContent = formatCurrency(netProfit);
+                            // Net Profit Styling
+                            const netProfit = result.summary.net_profit;
+                            const profitText = document.getElementById("netProfit");
+                            const profitContainer = document.getElementById("netProfitContainer");
+                            profitText.textContent = formatCurrency(netProfit);
 
-                      profitContainer.className = netProfit < 0
-                          ? "bg-red-50 p-6 rounded-xl border border-red-200 h-full flex flex-col justify-center items-center text-center"
-                          : "bg-emerald-50 p-6 rounded-xl border border-emerald-200 h-full flex flex-col justify-center items-center text-center";
+                            profitContainer.className = netProfit < 0
+                                ? "bg-red-50 p-6 rounded-xl border border-red-200 h-full flex flex-col justify-center items-center text-center"
+                                : "bg-emerald-50 p-6 rounded-xl border border-emerald-200 h-full flex flex-col justify-center items-center text-center";
 
-                      profitText.className = netProfit < 0
-                          ? "text-4xl font-extrabold text-red-600"
-                          : "text-4xl font-extrabold text-emerald-600";
+                            profitText.className = netProfit < 0
+                                ? "text-4xl font-extrabold text-red-600"
+                                : "text-4xl font-extrabold text-emerald-600";
 
-                      // Dynamic Cards Injection
-                      const cardsContainer = document.getElementById("dynamicExpenseCards");
-                      document.querySelectorAll(".dynamic-expense-card").forEach(c => c.remove());
+                            // Dynamic Cards Injection
+                            const cardsContainer = document.getElementById("dynamicExpenseCards");
+                            document.querySelectorAll(".dynamic-expense-card").forEach(c => c.remove());
 
-                      const themeColors = [
-                          "bg-white border-slate-200 text-slate-900", // Neutral
-                          "bg-brand-50 border-brand-200 text-brand-900", // Indigo
-                      ];
-                      let cIndex = 0;
+                            const themeColors = [
+                                "bg-white border-slate-200 text-slate-900", // Neutral
+                                "bg-brand-50 border-brand-200 text-brand-900", // Indigo
+                            ];
+                            let cIndex = 0;
 
-                      Object.keys(result.summary).forEach(key => {
-                          if (key.startsWith("expense_")) {
-                              const label = key.replace("expense_", "").replace(/_/g, " ");
-                              const colorClass = themeColors[cIndex % themeColors.length];
-                              cIndex++;
-                              const card = document.createElement("div");
-                              card.className = `p-4 rounded-lg border shadow-sm dynamic-expense-card ${colorClass}`;
-                              card.innerHTML = `<p class="text-xs font-medium text-slate-500 uppercase">${label}</p>
-                                                <p class="text-2xl font-bold mt-1">${formatCurrency(result.summary[key])}</p>`;
-                              cardsContainer.appendChild(card);
-                          }
-                      });
+                            Object.keys(result.summary).forEach(key => {
+                                if (key.startsWith("expense_")) {
+                                    const label = key.replace("expense_", "").replace(/_/g, " ");
+                                    const colorClass = themeColors[cIndex % themeColors.length];
+                                    cIndex++;
+                                    const card = document.createElement("div");
+                                    card.className = `p-4 rounded-lg border shadow-sm dynamic-expense-card ${colorClass}`;
+                                    card.innerHTML = `<p class="text-xs font-medium text-slate-500 uppercase">${label}</p>
+                                                      <p class="text-2xl font-bold mt-1">${formatCurrency(result.summary[key])}</p>`;
+                                    cardsContainer.appendChild(card);
+                                }
+                            });
 
-                      // 3. Populate Tables
-                      populateTable("top10TableBody", result.top_10_skus, [], 'orders');
-                      // Fix: Handle NaN explicitly in returns logic within populateTable
-                      populateTable("top10ReturnsTableBody", result.top_10_returns, [], 'returns');
-                      populateTable("unpaidTableBody", result.unpaid_orders, [], 'unpaid');
-                      populateTable("healthTableBody", result.sku_health, [], 'health');
+                            // 3. Populate Tables
+                            populateTable("top10TableBody", result.top_10_skus, [], 'orders');
+                            // Fix: Handle NaN explicitly in returns logic within populateTable
+                            populateTable("top10ReturnsTableBody", result.top_10_returns, [], 'returns');
+                            populateTable("unpaidTableBody", result.unpaid_orders, [], 'unpaid');
+                            populateTable("healthTableBody", result.sku_health, [], 'health');
 
-                      // Show Sections
-                      document.getElementById("summarySection").style.display = "block";
-                      document.getElementById("tabSection").style.display = "block";
-                      switchTabs("orders");
-                      downloadBtn.disabled = false;
-                      showFlash("Analysis complete!", "success");
-                      document.getElementById("summarySection").scrollIntoView({ behavior: "smooth" });
+                            // Show Sections
+                            document.getElementById("summarySection").style.display = "block";
+                            document.getElementById("tabSection").style.display = "block";
+                            switchTabs("orders");
+                            downloadBtn.disabled = false;
+                            showFlash("Analysis complete!", "success");
+                            document.getElementById("summarySection").scrollIntoView({ behavior: "smooth" });
 
-                  } else {
-                      showFlash("Error: " + result.error, "error");
-                  }
-              } catch (error) {
-                  showFlash("Error: " + error.message, "error");
-              } finally {
-                  document.getElementById("analyzeText").textContent = "Analyze Data";
-                  document.getElementById("analyzeLoader").style.display = "none";
-                  analyzeBtn.disabled = false;
-              }
-          }
+                        } else {
+                            showFlash("Error: " + result.error, "error");
+                        }
+                    } catch (error) {
+                        showFlash("Error: " + error.message, "error");
+                    } finally {
+                        document.getElementById("analyzeText").textContent = "Analyze Data";
+                        document.getElementById("analyzeLoader").style.display = "none";
+                        analyzeBtn.disabled = false;
+                    }
+                }
 
-          // --- Generic Table Populator ---
-          function populateTable(elementId, data, columns, type) {
-              const tbody = document.getElementById(elementId);
-              tbody.innerHTML = "";
-              if (!data || data.length === 0) return;
+                // --- Generic Table Populator ---
+                function populateTable(elementId, data, columns, type) {
+                    const tbody = document.getElementById(elementId);
+                    tbody.innerHTML = "";
+                    if (!data || data.length === 0) return;
 
-              data.forEach(item => {
-                  const tr = document.createElement("tr");
-                  tr.className = "hover:bg-slate-50 transition-colors";
+                    data.forEach(item => {
+                        const tr = document.createElement("tr");
+                        tr.className = "hover:bg-slate-50 transition-colors";
 
-                  if (type === 'orders') {
-                       tr.innerHTML = `
-                          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">${item.Rank}</td>
-                          <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${item.sku}</td>
-                          <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-brand-600">${formatNumber(item.quantity)}</td>`;
-                  } else if (type === 'returns') {
-                      // Fix for NaN/Missing Category
-                      let category = item.return_category || item.category || 'N/A';
-                      // Convert to string to safely check for 'nan' string from python pandas
-                      if(String(category).toLowerCase() === 'nan' || category === null || category === undefined) {
-                          category = 'General Return';
-                      }
+                        if (type === 'orders') {
+                             tr.innerHTML = `
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">${item.Rank}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${item.sku}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-brand-600">${formatNumber(item.quantity)}</td>`;
+                        } else if (type === 'returns') {
+                            // Fix for NaN/Missing Category
+                            let category = item.return_category || item.category || 'N/A';
+                            // Convert to string to safely check for 'nan' string from python pandas
+                            if(String(category).toLowerCase() === 'nan' || category === null || category === undefined) {
+                                category = 'General Return';
+                            }
 
-                      tr.innerHTML = `
-                          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">${item.Rank}</td>
-                          <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${item.sku}</td>
-                          <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-600">${formatNumber(item.quantity)}</td>
-                          <td class="px-6 py-4 whitespace-nowrap text-xs"><span class="px-2 py-1 bg-red-100 text-red-700 rounded-full">${category}</span></td>`;
-                  } else if (type === 'unpaid') {
-                      tr.innerHTML = `
-                          <td class="px-6 py-4 text-sm text-slate-900">${item['Order ID']}</td>
-                          <td class="px-6 py-4 text-sm text-slate-500">${item.SKU}</td>
-                          <td class="px-6 py-4 text-sm text-slate-500">${item.Quantity}</td>
-                          <td class="px-6 py-4 text-sm text-slate-500">₹${item['Item Price']}</td>
-                          <td class="px-6 py-4 text-sm text-slate-500">${item['Order Date'] || '-'}</td>
-                          <td class="px-6 py-4 text-sm text-slate-500">${item['Ship State'] || '-'}</td>`;
-                  } else if (type === 'health') {
-                      let badge = item.Health === 'Excellent' ? 'bg-emerald-100 text-emerald-700' : item.Health === 'Good' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
-                      tr.innerHTML = `
-                          <td class="px-6 py-4 text-sm font-medium text-slate-900">${item.SKU}</td>
-                          <td class="px-6 py-4 text-sm font-bold text-brand-600">${Number(item.Score).toFixed(2)}</td>
-                          <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs font-semibold ${badge}">${item.Health || 'N/A'}</span></td>
-                          <td class="px-6 py-4 text-sm text-slate-500">${item.Key_Issues || 'None'}</td>`;
-                  }
-                  tbody.appendChild(tr);
-              });
-          }
+                            tr.innerHTML = `
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">${item.Rank}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${item.sku}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-600">${formatNumber(item.quantity)}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-xs"><span class="px-2 py-1 bg-red-100 text-red-700 rounded-full">${category}</span></td>`;
+                        } else if (type === 'unpaid') {
+                            tr.innerHTML = `
+                                <td class="px-6 py-4 text-sm text-slate-900">${item['Order ID']}</td>
+                                <td class="px-6 py-4 text-sm text-slate-500">${item.SKU}</td>
+                                <td class="px-6 py-4 text-sm text-slate-500">${item.Quantity}</td>
+                                <td class="px-6 py-4 text-sm text-slate-500">₹${item['Item Price']}</td>
+                                <td class="px-6 py-4 text-sm text-slate-500">${item['Order Date'] || '-'}</td>
+                                <td class="px-6 py-4 text-sm text-slate-500">${item['Ship State'] || '-'}</td>`;
+                        } else if (type === 'health') {
+                            let badge = item.Health === 'Excellent' ? 'bg-emerald-100 text-emerald-700' : item.Health === 'Good' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+                            tr.innerHTML = `
+                                <td class="px-6 py-4 text-sm font-medium text-slate-900">${item.SKU}</td>
+                                <td class="px-6 py-4 text-sm font-bold text-brand-600">${Number(item.Score).toFixed(2)}</td>
+                                <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs font-semibold ${badge}">${item.Health || 'N/A'}</span></td>
+                                <td class="px-6 py-4 text-sm text-slate-500">${item.Key_Issues || 'None'}</td>`;
+                        }
+                        tbody.appendChild(tr);
+                    });
+                }
 
-          async function handleDownloadClick() {
-              if (!currentFileName) return;
-              document.getElementById("downloadText").textContent = "Downloading...";
-              document.getElementById("downloadLoader").style.display = "inline-block";
-              downloadBtn.disabled = true;
-              try {
-                  const response = await fetch("/download/" + currentFileName);
-                  if (response.ok) {
-                      const blob = await response.blob();
-                      const url = window.URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = url; a.download = currentFileName;
-                      document.body.appendChild(a); a.click();
-                      window.URL.revokeObjectURL(url); document.body.removeChild(a);
-                  }
-              } catch(e) { showFlash("Download failed", "error"); }
-              finally {
-                 document.getElementById("downloadText").textContent = "Download Full Report";
-                 document.getElementById("downloadLoader").style.display = "none";
-                 downloadBtn.disabled = false;
-              }
-          }
+                async function handleDownloadClick() {
+                    if (!currentFileName) return;
+                    document.getElementById("downloadText").textContent = "Downloading...";
+                    document.getElementById("downloadLoader").style.display = "inline-block";
+                    downloadBtn.disabled = true;
+                    try {
+                        const response = await fetch("/download/" + currentFileName);
+                        if (response.ok) {
+                            const blob = await response.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url; a.download = currentFileName;
+                            document.body.appendChild(a); a.click();
+                            window.URL.revokeObjectURL(url); document.body.removeChild(a);
+                        }
+                    } catch(e) { showFlash("Download failed", "error"); }
+                    finally {
+                       document.getElementById("downloadText").textContent = "Download Full Report";
+                       document.getElementById("downloadLoader").style.display = "none";
+                       downloadBtn.disabled = false;
+                    }
+                }
 
-          // --- Session Restore Logic (Preserved) ---
-          const isReload = performance.getEntriesByType("navigation")[0]?.type === "reload";
-          const savedDataExists = {{ 'true' if data_exists else 'false' }};
+                // --- Session Restore Logic (Preserved) ---
+                const isReload = performance.getEntriesByType("navigation")[0]?.type === "reload";
+                const savedDataExists = {{ 'true' if data_exists else 'false' }};
 
-          if (isReload) {
-              if(document.getElementById("uploadSection")) document.getElementById("uploadSection").style.display = "block";
-              fetch('/reset_analysis');
-          } else if (savedDataExists) {
-              try {
-                  const savedSummary = {{ summary | tojson | safe }};
-                  // Restore UI State using the data passed from Flask
-                  if(document.getElementById("uploadSection")) document.getElementById("uploadSection").style.display = "none";
+                if (isReload) {
+                    if(document.getElementById("uploadSection")) document.getElementById("uploadSection").style.display = "block";
+                    fetch('/reset_analysis');
+                } else if (savedDataExists) {
+                    try {
+                        const savedSummary = {{ summary | tojson | safe }};
+                        // Restore UI State using the data passed from Flask
+                        if(document.getElementById("uploadSection")) document.getElementById("uploadSection").style.display = "none";
 
-                  // Restore Expenses Inputs
-                  const savedExpenses = {{ expenses | tojson | safe }};
-                  if (savedExpenses) {
-                      expenseContainer.innerHTML = "";
-                      Object.entries(savedExpenses).forEach(([k,v]) => addExpenseRow(k, v));
-                  }
+                        // Restore Expenses Inputs
+                        const savedExpenses = {{ expenses | tojson | safe }};
+                        if (savedExpenses) {
+                            expenseContainer.innerHTML = "";
+                            Object.entries(savedExpenses).forEach(([k,v]) => addExpenseRow(k, v));
+                        }
 
-                  // Restore Summary & Charts (Re-using logic by simulating a result object)
-                  const mockResult = {
-                      success: true,
-                      summary: savedSummary,
-                      top_states: {{ top_states | tojson | safe }},
-                      top_10_skus: {{ top_10_skus | tojson | safe }},
-                      top_10_returns: {{ top_10_returns | tojson | safe }},
-                      unpaid_orders: {{ unpaid_orders | tojson | safe }},
-                      sku_health: {{ sku_health | tojson | safe }}
-                  };
+                        // Restore Summary & Charts (Re-using logic by simulating a result object)
+                        const mockResult = {
+                            success: true,
+                            summary: savedSummary,
+                            top_states: {{ top_states | tojson | safe }},
+                            top_10_skus: {{ top_10_skus | tojson | safe }},
+                            top_10_returns: {{ top_10_returns | tojson | safe }},
+                            unpaid_orders: {{ unpaid_orders | tojson | safe }},
+                            sku_health: {{ sku_health | tojson | safe }}
+                        };
 
-                  // 1. Charts
-                   if (mockResult.top_states) {
-                          const ctx = document.getElementById("stateOrdersChart").getContext("2d");
-                          const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-                          gradient.addColorStop(0, 'rgba(99, 102, 241, 0.9)');
-                          gradient.addColorStop(1, 'rgba(79, 70, 229, 0.7)');
-                          stateOrdersChart = new Chart(ctx, {
-                              type: "bar",
-                              data: {
-                                  labels: mockResult.top_states.map(s => s.state),
-                                  datasets: [{ label: "Orders", data: mockResult.top_states.map(s => s.total_orders), backgroundColor: gradient, borderRadius: 4, barThickness: 30 }]
-                              },
-                              options: { responsive: true, maintainAspectRatio: false, plugins: { legend: {display:false} }, scales: { x: {grid:{display:false}}, y: {border:{display:false}} } }
-                          });
-                   }
+                        // 1. Charts
+                         if (mockResult.top_states) {
+                                const ctx = document.getElementById("stateOrdersChart").getContext("2d");
+                                const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                                gradient.addColorStop(0, 'rgba(99, 102, 241, 0.9)');
+                                gradient.addColorStop(1, 'rgba(79, 70, 229, 0.7)');
+                                stateOrdersChart = new Chart(ctx, {
+                                    type: "bar",
+                                    data: {
+                                        labels: mockResult.top_states.map(s => s.state),
+                                        datasets: [{ label: "Orders", data: mockResult.top_states.map(s => s.total_orders), backgroundColor: gradient, borderRadius: 4, barThickness: 30 }]
+                                    },
+                                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: {display:false} }, scales: { x: {grid:{display:false}}, y: {border:{display:false}} } }
+                                });
+                         }
 
-                   // 2. Text Data
-                   document.getElementById("totalQuantity").textContent = formatNumber(mockResult.summary.total_quantity);
-                   document.getElementById("totalReturned").textContent = formatNumber(mockResult.summary.total_return_quantity);
-                   document.getElementById("totalUnpaidOrders").textContent = formatNumber(mockResult.summary.total_unpaid_orders);
-                   document.getElementById("totalPayment").textContent = formatCurrency(mockResult.summary.total_payment);
-                   document.getElementById("totalCost").textContent = formatCurrency(mockResult.summary.total_cost);
-                   document.getElementById("netProfit").textContent = formatCurrency(mockResult.summary.net_profit);
+                         // 2. Text Data
+                         document.getElementById("totalQuantity").textContent = formatNumber(mockResult.summary.total_quantity);
+                         document.getElementById("totalReturned").textContent = formatNumber(mockResult.summary.total_return_quantity);
+                         document.getElementById("totalUnpaidOrders").textContent = formatNumber(mockResult.summary.total_unpaid_orders);
+                         document.getElementById("totalPayment").textContent = formatCurrency(mockResult.summary.total_payment);
+                         document.getElementById("totalCost").textContent = formatCurrency(mockResult.summary.total_cost);
+                         document.getElementById("netProfit").textContent = formatCurrency(mockResult.summary.net_profit);
 
-                   // 3. Tables
-                   populateTable("top10TableBody", mockResult.top_10_skus, [], 'orders');
-                   populateTable("top10ReturnsTableBody", mockResult.top_10_returns, [], 'returns');
-                   populateTable("unpaidTableBody", mockResult.unpaid_orders, [], 'unpaid');
-                   populateTable("healthTableBody", mockResult.sku_health, [], 'health');
+                         // 3. Tables
+                         populateTable("top10TableBody", mockResult.top_10_skus, [], 'orders');
+                         populateTable("top10ReturnsTableBody", mockResult.top_10_returns, [], 'returns');
+                         populateTable("unpaidTableBody", mockResult.unpaid_orders, [], 'unpaid');
+                         populateTable("healthTableBody", mockResult.sku_health, [], 'health');
 
-                   document.getElementById("summarySection").style.display = "block";
-                   document.getElementById("tabSection").style.display = "block";
-                   switchTabs("orders");
-                   downloadBtn.disabled = false;
-                   currentFileName = "{{ session.get('output_filename', '') }}";
+                         document.getElementById("summarySection").style.display = "block";
+                         document.getElementById("tabSection").style.display = "block";
+                         switchTabs("orders");
+                         downloadBtn.disabled = false;
+                         currentFileName = "{{ session.get('output_filename', '') }}";
 
-              } catch(e) { console.error("Restore failed", e); }
-          }
-      });
+                    } catch(e) { console.error("Restore failed", e); }
+                }
+            });
     </script>
   </body>
 </html>
