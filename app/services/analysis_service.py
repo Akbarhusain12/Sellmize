@@ -27,14 +27,15 @@ def load_analysis_from_file(filename):
 
         # ---------------- TOP SKUS ----------------
         try:
-            top_10_skus = pd.read_excel(output_path, sheet_name="Top 10 SKUs").to_dict("records")
+            top_10_skus = pd.read_excel(output_path, sheet_name="Top 10 SKUs")
+            top_10_skus = top_10_skus.where(pd.notnull(top_10_skus), None).to_dict("records")
         except Exception:
             top_10_skus = []
 
         # ---------------- TOP RETURNS ----------------
         try:
             top_10_returns_df = pd.read_excel(output_path, sheet_name="Top 10 Returns")
-            top_10_returns = top_10_returns_df.to_dict("records")
+            top_10_returns = top_10_returns_df.where(pd.notnull(top_10_returns_df), None).to_dict("records")
         except Exception:
             top_10_returns_df = pd.DataFrame()
             top_10_returns = []
@@ -46,14 +47,14 @@ def load_analysis_from_file(filename):
                 state_df = state_df.rename(
                     columns={"ship_state": "state", "quantity": "total_orders"}
                 )
-            top_states = state_df.to_dict("records")
+            top_states = state_df.where(pd.notnull(state_df), None).to_dict("records")
         except Exception:
             top_states = []
 
         # ---------------- UNPAID ORDERS ----------------
         try:
             unpaid_orders_df = pd.read_excel(output_path, sheet_name="Unpaid Orders")
-            unpaid_orders = unpaid_orders_df.to_dict("records")
+            unpaid_orders = unpaid_orders_df.where(pd.notnull(unpaid_orders_df), None).to_dict("records")
         except Exception:
             unpaid_orders_df = pd.DataFrame()
             unpaid_orders = []
@@ -95,9 +96,8 @@ def load_analysis_from_file(filename):
             if "Anomaly" in scored.columns:
                 scored["Anomaly"] = scored["Anomaly"].map({True: "Yes", False: "No"})
 
-            sku_health_rows = scored[
-                ["SKU", "Score", "Health", "Key_Issues", "Rating", "Anomaly"]
-            ].to_dict("records")
+            sku_health_df = scored[["SKU", "Score", "Health", "Key_Issues", "Rating", "Anomaly"]]
+            sku_health_rows = sku_health_df.where(pd.notnull(sku_health_df), None).to_dict("records")
 
         except Exception as e:
             logger.warning(f"SKU health recomputation failed: {e}")
@@ -110,6 +110,8 @@ def load_analysis_from_file(filename):
 
             try:
                 value = float(value)
+                if pd.isna(value):  # Check if it turned into NaN
+                    value = 0.0
             except Exception:
                 value = 0.0
 

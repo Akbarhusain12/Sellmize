@@ -141,18 +141,23 @@ def analyze():
             top_states_list = []
             unpaid_orders_list = []
             sku_health_rows = []
-            merged_df = pd.DataFrame() # 🔥 FIXED: Initialize here to avoid crash
+            merged_df = pd.DataFrame() 
 
             # Load Sheets
             summary_df = pd.read_excel(output_path, sheet_name='Summary')
+            
+            # --- FIX 1: Sanitize Top 10 SKUs ---
             top_10_df = pd.read_excel(output_path, sheet_name='Top 10 SKUs')
-            top_10_list = top_10_df.to_dict('records')
+            top_10_list = top_10_df.where(pd.notnull(top_10_df), None).to_dict('records')
 
             # Process Summary
             for _, row in summary_df.iterrows():
                 metric = str(row['Metric']).strip()
                 val = row['Value']
-                try: val = float(val) 
+                try: 
+                    val = float(val) 
+                    # --- FIX 2: Check for NaN in summary values ---
+                    if pd.isna(val): val = 0.0
                 except: val = 0.0
                 
                 key_map = {'Total Quantity': 'total_quantity', 'Total Payment': 'total_payment', 
@@ -167,26 +172,29 @@ def analyze():
 
             # Load secondary sheets
             try:
-                top_10_returns_list = pd.read_excel(output_path, sheet_name='Top 10 Returns').to_dict('records')
+                # --- FIX 3: Sanitize Returns ---
+                returns_df = pd.read_excel(output_path, sheet_name='Top 10 Returns')
+                top_10_returns_list = returns_df.where(pd.notnull(returns_df), None).to_dict('records')
             except: pass
             
             try:
+                # --- FIX 4: Sanitize Top States ---
                 state_df = pd.read_excel(output_path, sheet_name='Top 10 States')
                 state_df = state_df.rename(columns={'ship_state': 'state', 'quantity': 'total_orders'})
-                top_states_list = state_df.to_dict('records')
+                top_states_list = state_df.where(pd.notnull(state_df), None).to_dict('records')
             except: pass
 
             try:
+                # --- FIX 5: Sanitize Unpaid Orders (CRITICAL) ---
                 unpaid_orders_df = pd.read_excel(output_path, sheet_name='Unpaid Orders')
-                unpaid_orders_list = unpaid_orders_df.to_dict('records')
+                unpaid_orders_list = unpaid_orders_df.where(pd.notnull(unpaid_orders_df), None).to_dict('records')
             except: unpaid_orders_df = pd.DataFrame()
 
             # Re-run SKU Health
             try:
                 merged_df = pd.read_excel(output_path, sheet_name='Merged Data')
                 
-                # 🔥 FIXED: Handle NaNs in merged_df for safer DB storage
-                # This replaces NaN with None (which becomes NULL in SQL)
+                # Sanitize merged_df before logic
                 merged_df = merged_df.where(pd.notnull(merged_df), None)
 
                 if 'sku' in merged_df.columns:
@@ -208,7 +216,10 @@ def analyze():
                         s_df['Anomaly'] = s_df['Anomaly'].map({True:'Yes', False:'No'})
                         disp.append('Anomaly')
                     
-                    sku_health_rows = s_df[disp].to_dict('records')
+                    # --- FIX 6: Sanitize Final Health Output ---
+                    final_health_df = s_df[disp]
+                    sku_health_rows = final_health_df.where(pd.notnull(final_health_df), None).to_dict('records')
+
             except Exception as e:
                 logger.error(f"SKU Health/Merge error: {e}")
 
@@ -218,7 +229,6 @@ def analyze():
             session['analysis_timestamp'] = datetime.now().isoformat()
             session.modified = True
             
-            # 🔥 FIXED: Safe conversion to dict
             merged_data_list = merged_df.to_dict('records') if not merged_df.empty else []
 
             # Save to DB
@@ -226,11 +236,10 @@ def analyze():
                 file_name=output_filename, start_date=start_date, end_date=end_date,
                 summary=summary_dict, top_skus=top_10_list, top_returns=top_10_returns_list,
                 top_states=top_states_list, 
-                merged_data=merged_data_list # Passing safe list
-                # Removed: unpaid_orders, sku_health
+                merged_data=merged_data_list 
             )
 
-            # Response (Includes analysis data for UI, but it wasn't saved to DB)
+            # Response
             return jsonify({
                 'success': True, 'filename': output_filename, 'summary': summary_dict,
                 'top_10_skus': top_10_list, 'top_10_returns': top_10_returns_list,
