@@ -31,7 +31,7 @@ def parse_date(date_val):
     return date_val
 
 
-def get_or_create_analysis(file_name: str, start_date, end_date, summary: dict):
+def get_or_create_analysis(user_id: int,file_name: str, start_date, end_date, summary: dict):
     """
     Get existing analysis or create new one based on date range.
     Returns (analysis_id, is_new_analysis)
@@ -41,6 +41,7 @@ def get_or_create_analysis(file_name: str, start_date, end_date, summary: dict):
     
     # Check for existing analysis with same date range
     existing = Analysis.query.filter_by(
+        user_id=user_id,
         start_date=p_start_date,
         end_date=p_end_date
     ).first()
@@ -56,6 +57,7 @@ def get_or_create_analysis(file_name: str, start_date, end_date, summary: dict):
         logger.info(f"✨ Creating NEW Analysis for date range {p_start_date} to {p_end_date}")
         new_analysis = Analysis(
             id=uuid.uuid4(),
+            user_id=user_id,
             file_name=file_name,
             start_date=p_start_date,
             end_date=p_end_date,
@@ -286,6 +288,7 @@ def update_state_sales_incrementally(analysis_id, top_states: list, is_new_analy
 
 def save_full_analysis(
     *,
+    user_id: int,
     file_name: str,
     start_date,
     end_date,
@@ -305,7 +308,7 @@ def save_full_analysis(
     try:
         # 1. Get or create analysis
         analysis_id, is_new_analysis = get_or_create_analysis(
-            file_name, start_date, end_date, summary
+            user_id, file_name, start_date, end_date, summary
         )
         
         # 2. Insert transactions incrementally (skip duplicates)

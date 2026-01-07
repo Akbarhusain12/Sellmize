@@ -1,8 +1,8 @@
 import logging
 from datetime import datetime
 
-import pandas as pd
 from flask import Blueprint, render_template, request
+from flask_login import current_user, login_required
 from sqlalchemy import func, extract
 
 from app.db.connection import database as db
@@ -15,17 +15,21 @@ dashboard_bp = Blueprint("dashboard", __name__)
 
 
 @dashboard_bp.route("/")
+@login_required
 def index():
     """
     Renders the Dashboard with optional month filtering.
+    SCOPED TO CURRENT USER ONLY.
     """
 
-    # --- 1. GET AVAILABLE MONTHS ---
+    # --- 1. GET AVAILABLE MONTHS (User Scoped) ---
     available_months = []
     try:
         months_query = db.session.query(
             extract('year', Analysis.start_date).label('year'),
             extract('month', Analysis.start_date).label('month')
+        ).filter(
+            Analysis.user_id == current_user.id  # <--- CRITICAL: Filter by User
         ).distinct().order_by(
             extract('year', Analysis.start_date).desc(),
             extract('month', Analysis.start_date).desc()
@@ -65,25 +69,38 @@ def index():
     }
 
     try:
-        # --- FILTER DATA ---
+        # --- 2. FILTER DATA (User Scoped) ---
+        # Start with base query filtered by user
+        query = Analysis.query.filter_by(user_id=current_user.id)
+
         if selected_month and selected_month != 'all':
-            year, month = map(int, selected_month.split('-'))
-            analyses = Analysis.query.filter(
-                extract('year', Analysis.start_date) == year,
-                extract('month', Analysis.start_date) == month
-            ).all()
-        else:
-            analyses = Analysis.query.all()
+            try:
+                year, month = map(int, selected_month.split('-'))
+                query = query.filter(
+                    extract('year', Analysis.start_date) == year,
+                    extract('month', Analysis.start_date) == month
+                )
+            except ValueError:
+                pass # Ignore invalid month format
+
+        analyses = query.all()
 
         if not analyses:
+            # Render empty dashboard if user has no data
             return render_template('index.html', **context)
 
+        # Get list of relevant Analysis IDs
         analysis_ids = [a.id for a in analyses]
         context['data_exists'] = True
-        context['last_updated'] = analyses[-1].created_at.strftime('%B %d, %Y')
+        
+        # Use the creation date of the most recent analysis file uploaded
+        if analyses:
+            latest_analysis = max(analyses, key=lambda x: x.created_at)
+            context['last_updated'] = latest_analysis.created_at.strftime('%B %d, %Y')
 
-        # --- SUMMARY METRICS ---
+        # --- 3. AGGREGATE SUMMARY METRICS ---
         metrics_sum = {}
+        # Fetch metrics only for the filtered analysis_ids
         for m in SummaryMetric.query.filter(
             SummaryMetric.analysis_id.in_(analysis_ids)
         ).all():
@@ -99,7 +116,7 @@ def index():
         context['total_orders'] = f"{int(total_qty):,}"
         context['return_rate'] = f"{(return_qty / total_qty * 100) if total_qty else 0:.2f}"
 
-        # --- TOP SKUs ---
+        # --- 4. TOP SKUs CHART ---
         sku_data = db.session.query(
             TopSKU.sku,
             func.sum(TopSKU.quantity).label('total_qty')
@@ -112,7 +129,7 @@ def index():
         context['chart_sku_labels'] = [s.sku for s in sku_data]
         context['chart_sku_data'] = [int(s.total_qty) for s in sku_data]
 
-        # --- TOP STATES ---
+        # --- 5. TOP STATES CHART ---
         state_data = db.session.query(
             StateSales.state,
             func.sum(StateSales.quantity).label('total_qty')
@@ -125,33 +142,44 @@ def index():
         context['chart_state_labels'] = [s.state for s in state_data]
         context['chart_state_data'] = [int(s.total_qty) for s in state_data]
 
-        # --- COST BREAKDOWN ---
+        # --- 6. COST BREAKDOWN CHART ---
         product_cost = metrics_sum.get('total_cost', 0.0)
+        amz_fees = metrics_sum.get('total_amz_fees', 0.0)
 
-        expense_labels = []
-        expense_values = []
+        expense_labels = ['Product Cost', 'Amazon Fees']
+        expense_values = [product_cost, amz_fees]
 
+        # Add custom expenses (rent, packaging, etc.)
         for name, value in metrics_sum.items():
             if name.startswith("expense_"):
-                expense_labels.append(name.replace("expense_", "").replace("_", " ").title())
+                label = name.replace("expense_", "").replace("_", " ").title()
+                expense_labels.append(label)
                 expense_values.append(float(value))
 
-        context['chart_cost_labels'] = ['Product Cost'] + expense_labels
-        context['chart_cost_data'] = [round(product_cost, 2)] + expense_values
+        context['chart_cost_labels'] = expense_labels
+        # Round values for chart
+        context['chart_cost_data'] = [round(v, 2) for v in expense_values]
 
-        # --- TREND CHART ---
+        # --- 7. TREND CHART (Daily Profit/Revenue) ---
+        import pandas as pd # Import locally to avoid issues if not used elsewhere
+        
         transactions = Transaction.query.filter(
             Transaction.analysis_id.in_(analysis_ids)
         ).order_by(Transaction.order_date).all()
 
         if transactions:
-            df = pd.DataFrame([{
-                'date': t.order_date,
-                'revenue': t.total_amount or 0,
-                'cost': (t.total_cost or 0) + (t.amz_fees or 0)
-            } for t in transactions])
-
-            if not df.empty:
+            data_list = []
+            for t in transactions:
+                if t.order_date: # Skip if date is None
+                    data_list.append({
+                        'date': t.order_date,
+                        'revenue': t.total_amount or 0,
+                        'cost': (t.total_cost or 0) + (t.amz_fees or 0)
+                    })
+            
+            if data_list:
+                df = pd.DataFrame(data_list)
+                # Group by date
                 daily = df.groupby('date').sum().reset_index()
                 daily['profit'] = daily['revenue'] - daily['cost']
 
@@ -161,5 +189,5 @@ def index():
 
     except Exception as e:
         logger.exception(f"Dashboard load failed: {e}")
-
+    
     return render_template('index.html', **context)

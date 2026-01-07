@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, session, jsonify, send_fi
 import os
 import tempfile
 import shutil
+from flask_login import current_user, login_required
 import pandas as pd
 from datetime import datetime
 from flask import current_app as current
@@ -26,6 +27,7 @@ analyzer_api = Blueprint("analyzer_api", __name__)
 # ----------------------- UI PAGE -----------------------
 
 @analyzer_page.route('/')
+@login_required
 def analyzer():
     """Serves the profit analyzer page and reloads previous data."""
     context = {
@@ -233,6 +235,7 @@ def analyze():
 
             # Save to DB
             save_full_analysis(
+                user_id=current_user.id,
                 file_name=output_filename, start_date=start_date, end_date=end_date,
                 summary=summary_dict, top_skus=top_10_list, top_returns=top_10_returns_list,
                 top_states=top_states_list, 

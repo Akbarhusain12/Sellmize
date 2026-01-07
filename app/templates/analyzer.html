@@ -238,8 +238,41 @@
           <a href="/marketlens" class="nav-item">MarketLens</a>
           <a href="/content" class="nav-item">Content Gen</a>
         </div>
-
         <div class="flex items-center gap-4">
+          {% if current_user.is_authenticated %}
+          <div class="hidden sm:flex flex-col items-end mr-2">
+            <span class="text-sm font-semibold text-slate-700"
+              >{{ current_user.name or current_user.email }}</span
+            >
+            <a
+              href="{{ url_for('auth.logout') }}"
+              class="text-xs text-red-500 hover:text-red-700 font-medium transition-colors"
+            >
+              Sign out
+            </a>
+          </div>
+
+          <div
+            class="w-9 h-9 bg-brand-100 text-brand-700 rounded-full flex items-center justify-center font-bold text-sm border border-brand-200 cursor-default"
+          >
+            {{ current_user.email[0].upper() }}
+          </div>
+
+          {% else %}
+          <a
+            href="{{ url_for('auth.login') }}"
+            class="text-sm font-medium text-slate-600 hover:text-brand-600 transition-colors"
+            >Log in</a
+          >
+          <a
+            href="{{ url_for('auth.register') }}"
+            class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+          >
+            Get Started
+          </a>
+          {% endif %}
+        </div>
+        <!-- <div class="flex items-center gap-4">
           <button
             class="relative p-2 text-slate-400 hover:text-slate-600 transition-colors"
           >
@@ -265,7 +298,7 @@
           >
             U
           </div>
-        </div>
+        </div> -->
       </nav>
 
       <div
