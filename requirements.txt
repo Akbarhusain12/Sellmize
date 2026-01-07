@@ -45,3 +45,4 @@ matplotlib
 fpdf
 
 langchain_groq
+flask_login
