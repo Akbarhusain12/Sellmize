@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, session, jsonify, send_fi
 import os
 import tempfile
 import shutil
+import math  # Needed for NaN checking
 from flask_login import current_user, login_required
 import pandas as pd
 from datetime import datetime
@@ -10,7 +11,7 @@ from flask import current_app as current
 from app.utils.file_utils import save_uploaded_files, convert_txt_to_excel
 from app.services.ecommerce_service import process_data
 from app.services.analysis_service import load_analysis_from_file
-from app.db.repositories import save_full_analysis   # adjust to your actual path
+from app.db.repositories import save_full_analysis
 
 import logging
 
@@ -22,6 +23,22 @@ analyzer_page = Blueprint("analyzer_page", __name__)
 # api blueprint
 analyzer_api = Blueprint("analyzer_api", __name__)
 
+# ----------------------- HELPER -----------------------
+
+def clean_for_json(obj):
+    """
+    Recursively replaces NaN, Infinity, and -Infinity with None.
+    This prevents the 'Invalid JSON' error in the frontend console.
+    """
+    if isinstance(obj, list):
+        return [clean_for_json(i) for i in obj]
+    elif isinstance(obj, dict):
+        return {k: clean_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+        return obj
+    return obj
 
 # ----------------------- UI PAGE -----------------------
 
@@ -43,7 +60,6 @@ def analyzer():
 
     if output_filename:
         loaded_data = load_analysis_from_file(output_filename)
-
         if loaded_data:
             context['data_exists'] = True
             context['summary'] = loaded_data.get('summary_data')
@@ -58,23 +74,17 @@ def analyzer():
 
 @analyzer_api.route('/analyze', methods=['POST'])
 def analyze():
-    """
-    Processes files and returns summary data.
-    Saves ONLY the Master Report to the Output Folder.
-    """
     temp_conversion_dir = None
-
     try:
-        # 1. Create temp dir
         temp_conversion_dir = tempfile.mkdtemp()
 
-        # Get inputs
+        # Inputs
         order_files = request.files.getlist('order_files')
         payment_files = request.files.getlist('payment_files')
         return_files = request.files.getlist('return_files')
         cost_price_file = request.files.get('cost_price_file')
 
-        # Get Expenses
+        # Expenses
         dynamic_expenses = {}
         for key, value in request.form.items():
             if key.startswith("expense_"):
@@ -86,7 +96,6 @@ def analyze():
 
         if not dynamic_expenses:
             return jsonify({'success': False, 'error': 'No expense inputs found.'}), 400
-
         if not order_files or not payment_files or not return_files or not cost_price_file:
             return jsonify({'success': False, 'error': 'Missing required files.'}), 400
 
@@ -99,19 +108,15 @@ def analyze():
             # Conversion Logic
             converted_order_paths = []
             for file in order_paths:
-                ext = os.path.splitext(file)[-1].lower()
-                if ext in ['.txt', '.tsv']:
-                    excel_path = convert_txt_to_excel(file, temp_conversion_dir)
-                    converted_order_paths.append(excel_path)
+                if os.path.splitext(file)[-1].lower() in ['.txt', '.tsv']:
+                    converted_order_paths.append(convert_txt_to_excel(file, temp_conversion_dir))
                 else:
                     converted_order_paths.append(file)
 
             converted_return_paths = []
             for file in return_paths:
-                ext = os.path.splitext(file)[-1].lower()
-                if ext in ['.txt', '.tsv']:
-                    excel_path = convert_txt_to_excel(file, temp_conversion_dir)
-                    converted_return_paths.append(excel_path)
+                if os.path.splitext(file)[-1].lower() in ['.txt', '.tsv']:
+                    converted_return_paths.append(convert_txt_to_excel(file, temp_conversion_dir))
                 else:
                     converted_return_paths.append(file)
 
@@ -130,53 +135,31 @@ def analyze():
                 end_date=end_date
             )
 
-            # Read Data
             output_path = os.path.join(current.config['OUTPUT_FOLDER'], output_filename)
-            
-            # Initialize containers
             summary_dict = {}
-            top_10_list = []
-            top_10_returns_list = []
-            top_states_list = []
-            unpaid_orders_list = []
-            merged_df = pd.DataFrame() 
-
+            
             # Load Sheets
             summary_df = pd.read_excel(output_path, sheet_name='Summary')
             
             try:
                 merged_df = pd.read_excel(output_path, sheet_name='Merged Data')
-                merged_df.columns = (
-                    merged_df.columns
-                    .str.strip()
-                    .str.lower()
-                    .str.replace(" ", "_")
-                    .str.replace("-", "_")
-                )
-                logger.info(f"✅ Loaded merged data: {len(merged_df)} rows")
+                merged_df.columns = merged_df.columns.str.strip().str.lower().str.replace(" ", "_").str.replace("-", "_")
             except Exception as e:
                 logger.error(f"❌ Failed to load Merged Data: {e}")
                 merged_df = pd.DataFrame()
 
             if 'real_revenue' not in merged_df.columns:
-                logger.error("❌ real_revenue missing in merged data BEFORE DB save")
-                return jsonify({
-                    "success": False,
-                    "error": "real_revenue missing in merged data. Analyzer output invalid."
-                }), 500
+                return jsonify({"success": False, "error": "real_revenue missing in output."}), 500
 
-            
-            # --- FIX 1: Sanitize Top 10 SKUs ---
+            # Sanitize Data Frames (where.pd.notnull converts NaN to None/null)
             top_10_df = pd.read_excel(output_path, sheet_name='Top 10 SKUs')
             top_10_list = top_10_df.where(pd.notnull(top_10_df), None).to_dict('records')
 
-            # Process Summary
             for _, row in summary_df.iterrows():
                 metric = str(row['Metric']).strip()
                 val = row['Value']
                 try: 
                     val = float(val) 
-                    # --- FIX 2: Check for NaN in summary values ---
                     if pd.isna(val): val = 0.0
                 except: val = 0.0
                 
@@ -190,66 +173,61 @@ def analyze():
                 elif metric.lower() not in ['total quantity', 'total payment', 'total cost', 'net profit']:
                     summary_dict["expense_" + metric.lower().replace(" ", "_")] = val
 
-            # Load secondary sheets
+            # Load secondary sheets safely
             try:
-                # --- FIX 3: Sanitize Returns ---
-                returns_df = pd.read_excel(output_path, sheet_name='Top 10 Returns')
-                top_10_returns_list = returns_df.where(pd.notnull(returns_df), None).to_dict('records')
-            except: pass
+                r_df = pd.read_excel(output_path, sheet_name='Top 10 Returns')
+                top_10_returns_list = r_df.where(pd.notnull(r_df), None).to_dict('records')
+            except: top_10_returns_list = []
             
             try:
-                # --- FIX 4: Sanitize Top States ---
-                state_df = pd.read_excel(output_path, sheet_name='Top 10 States')
-                state_df = state_df.rename(columns={'ship_state': 'state', 'quantity': 'total_orders'})
-                top_states_list = state_df.where(pd.notnull(state_df), None).to_dict('records')
-            except: pass
+                s_df = pd.read_excel(output_path, sheet_name='Top 10 States')
+                s_df = s_df.rename(columns={'ship_state': 'state', 'quantity': 'total_orders'})
+                top_states_list = s_df.where(pd.notnull(s_df), None).to_dict('records')
+            except: top_states_list = []
 
             try:
-                # --- FIX 5: Sanitize Unpaid Orders (CRITICAL) ---
-                unpaid_orders_df = pd.read_excel(output_path, sheet_name='Unpaid Orders')
-                unpaid_orders_list = unpaid_orders_df.where(pd.notnull(unpaid_orders_df), None).to_dict('records')
-            except: unpaid_orders_df = pd.DataFrame()
+                u_df = pd.read_excel(output_path, sheet_name='Unpaid Orders')
+                unpaid_orders_list = u_df.where(pd.notnull(u_df), None).to_dict('records')
+            except: unpaid_orders_list = []
 
-
-            # Save Session
+            # Session Management
             session['dynamic_expenses'] = dynamic_expenses 
             session['output_filename'] = output_filename
-            session['analysis_timestamp'] = datetime.now().isoformat()
             session.modified = True
             
+            # DB Persistence
             merged_data_list = merged_df.to_dict('records') if not merged_df.empty else []
-
-            # Save to DB
             save_full_analysis(
                 user_id=current_user.id,
                 file_name=output_filename, start_date=start_date, end_date=end_date,
                 summary=summary_dict, top_skus=top_10_list, top_returns=top_10_returns_list,
-                top_states=top_states_list, 
-                merged_data=merged_data_list 
+                top_states=top_states_list, merged_data=merged_data_list 
             )
 
-            # Response
-            return jsonify({
-                'success': True, 'filename': output_filename, 'summary': summary_dict,
-                'top_10_skus': top_10_list, 'top_10_returns': top_10_returns_list,
-                'top_states': top_states_list, 'unpaid_orders': unpaid_orders_list
-            })
+            # FINAL STEP: Wrap in clean_for_json to prevent Heroku 'Invalid JSON' crash
+            response_payload = {
+                'success': True, 
+                'filename': output_filename, 
+                'summary': summary_dict,
+                'top_10_skus': top_10_list, 
+                'top_10_returns': top_10_returns_list,
+                'top_states': top_states_list, 
+                'unpaid_orders': unpaid_orders_list
+            }
+
+            return jsonify(clean_for_json(response_payload))
 
         except Exception as e:
             logger.error(f"Processing error: {e}", exc_info=True)
-            return jsonify({'success': False, 'error': f'Processing error: {str(e)}'}), 500
+            return jsonify({'success': False, 'error': str(e)}), 500
 
     except Exception as e:
         logger.error(f"Server error: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
     
     finally:
         if temp_conversion_dir and os.path.exists(temp_conversion_dir):
-            try:
-                shutil.rmtree(temp_conversion_dir)
-                logger.info(f"🧹 Cleaned up temp directory: {temp_conversion_dir}")
-            except Exception as e:
-                logger.warning(f"⚠️ Failed to cleanup temp dir: {e}")
+            shutil.rmtree(temp_conversion_dir)
 
 @analyzer_api.route('/download/<filename>')
 def download(filename):

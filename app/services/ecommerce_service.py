@@ -226,26 +226,25 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     # --- Date Filtering (Orders) ---
     if 'order_date' in filtered_orders.columns and filtered_orders['order_date'].notna().any():
         try:
-            # Convert to datetime safely
+            # FORCE timezone removal to prevent Excel export crash
             temp_date = pd.to_datetime(filtered_orders['order_date'], errors='coerce')
-            filtered_orders['order_date'] = pd.to_datetime(filtered_orders['order_date'], errors='coerce').dt.date
+            if temp_date.dt.tz is not None:
+                temp_date = temp_date.dt.tz_localize(None)
+            
+            # Save as date objects for filtering
+            filtered_orders['order_date'] = temp_date.dt.date
 
             # Apply filters if provided
             if start_date:
                 start_dt = pd.to_datetime(start_date).date()
                 filtered_orders = filtered_orders[filtered_orders['order_date'] >= start_dt]
-
             if end_date:
                 end_dt = pd.to_datetime(end_date).date()
                 filtered_orders = filtered_orders[filtered_orders['order_date'] <= end_dt]
 
-            logger.warning(f"📅 Date filtering applied: {len(filtered_orders)} records remain "
-                  f"from {start_date or 'start'} to {end_date or 'end'}.")
-            
-            
-
+            logger.warning(f"📅 Date filtering applied: {len(filtered_orders)} records remain.")
         except Exception as e:
-            logger.warning(f"⚠️ Date filtering skipped due to error: {e}")
+            logger.warning(f"⚠️ Date filtering skipped: {e}")
     else:
         logger.warning("⚠️ No valid 'order_date' column found for date filtering.")
     
@@ -425,11 +424,14 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
 
     # --- 4d. Calculate REAL Revenue (Demand-based) ---
     if 'item_price' in merged_data.columns:
+        # Convert to numeric first, then fill zeros, THEN multiply
         merged_data['item_price'] = pd.to_numeric(merged_data['item_price'], errors='coerce').fillna(0)
+        merged_data['quantity'] = pd.to_numeric(merged_data['quantity'], errors='coerce').fillna(0)
         merged_data['real_revenue'] = merged_data['quantity'] * merged_data['item_price']
     else:
         raise Exception("❌ item_price missing — cannot compute real_revenue")
-
+    
+    
     # Keep only SKUs that exist in both orders and payments
     merged_data = merged_data.merge(
         consolidated_sku_orders[['amazon-order-id', 'sku']],
@@ -515,9 +517,11 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     # Also keep the status (Return/Refund)
     merged_data.rename(columns={'Return type': 'Status'}, inplace=True)
 
-    # If merge failed to create 'Status', create it as empty
+    # Ensure 'Status' and 'raw_return_reason' exist even if merge found zero returns
     if 'Status' not in merged_data.columns:
-        merged_data['Status'] = pd.NA
+        merged_data['Status'] = None
+    if 'raw_return_reason' not in merged_data.columns:
+        merged_data['raw_return_reason'] = None
 
     merged_data.drop(columns=['Order ID'], inplace=True, errors='ignore')
 
