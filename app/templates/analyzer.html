@@ -235,6 +235,7 @@
             class="text-brand-600 font-medium transition-colors"
             >Profit Analyzer</a
           >
+          <a href="/strategist" class="nav-item">Strategist</a>
           <a href="/marketlens" class="nav-item">MarketLens</a>
           <a href="/content" class="nav-item">Content Gen</a>
         </div>
@@ -312,6 +313,11 @@
           href="/analyzer"
           class="block px-4 py-2 text-brand-600 bg-brand-50 font-medium"
           >Profit Analyzer</a
+        >
+        <a
+          href="/strategist"
+          class="block px-4 py-2 text-slate-600 hover:bg-slate-50"
+          >Strategist</a
         >
         <a
           href="/marketlens"
@@ -692,22 +698,6 @@
               </svg>
               Unpaid
             </button>
-            <button id="healthTab" class="tab-button">
-              <svg
-                class="w-4 h-4 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 8c-1.105 0-2 .895-2 2v10m2-10c1.105 0 2 .895 2 2v10M6 12v10m12-10v10"
-                ></path>
-              </svg>
-              SKU Health
-            </button>
           </div>
 
           <div id="ordersContent" class="tab-content" style="display: none">
@@ -837,44 +827,6 @@
               </table>
             </div>
           </div>
-
-          <div id="healthContent" class="tab-content" style="display: none">
-            <h3 class="text-lg font-bold text-slate-900 mb-4">
-              SKU Health Score
-            </h3>
-            <div class="overflow-x-auto rounded-lg border border-slate-200">
-              <table class="min-w-full divide-y divide-slate-200">
-                <thead class="bg-slate-50">
-                  <tr>
-                    <th
-                      class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider"
-                    >
-                      SKU
-                    </th>
-                    <th
-                      class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider"
-                    >
-                      Score
-                    </th>
-                    <th
-                      class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider"
-                    >
-                      Rating
-                    </th>
-                    <th
-                      class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider"
-                    >
-                      Key Issues
-                    </th>
-                  </tr>
-                </thead>
-                <tbody
-                  id="healthTableBody"
-                  class="bg-white divide-y divide-slate-200"
-                ></tbody>
-              </table>
-            </div>
-          </div>
         </div>
       </div>
     </main>
@@ -956,7 +908,7 @@
                       const downloadBtn = document.getElementById("downloadBtn");
 
                       // Tabs
-                      const tabs = ['orders', 'returns', 'states', 'unpaid', 'health'];
+                      const tabs = ['orders', 'returns', 'states', 'unpaid'];
 
                       // --- Helper Functions ---
                       function toggleMobileMenu() { mobileMenu.classList.toggle("hidden"); }
@@ -1153,7 +1105,6 @@
                                   // Fix: Handle NaN explicitly in returns logic within populateTable
                                   populateTable("top10ReturnsTableBody", result.top_10_returns, [], 'returns');
                                   populateTable("unpaidTableBody", result.unpaid_orders, [], 'unpaid');
-                                  populateTable("healthTableBody", result.sku_health, [], 'health');
 
                                   // Show Sections
                                   document.getElementById("summarySection").style.display = "block";
@@ -1211,14 +1162,7 @@
                                       <td class="px-6 py-4 text-sm text-slate-500">₹${item['Item Price']}</td>
                                       <td class="px-6 py-4 text-sm text-slate-500">${item['Order Date'] || '-'}</td>
                                       <td class="px-6 py-4 text-sm text-slate-500">${item['Ship State'] || '-'}</td>`;
-                              } else if (type === 'health') {
-                                  let badge = item.Health === 'Excellent' ? 'bg-emerald-100 text-emerald-700' : item.Health === 'Good' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
-                                  tr.innerHTML = `
-                                      <td class="px-6 py-4 text-sm font-medium text-slate-900">${item.SKU}</td>
-                                      <td class="px-6 py-4 text-sm font-bold text-brand-600">${Number(item.Score).toFixed(2)}</td>
-                                      <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs font-semibold ${badge}">${item.Health || 'N/A'}</span></td>
-                                      <td class="px-6 py-4 text-sm text-slate-500">${item.Key_Issues || 'None'}</td>`;
-                              }
+                              } 
                               tbody.appendChild(tr);
                           });
                       }
@@ -1273,8 +1217,7 @@
                                   top_states: {{ top_states | tojson | safe }},
                                   top_10_skus: {{ top_10_skus | tojson | safe }},
                                   top_10_returns: {{ top_10_returns | tojson | safe }},
-                                  unpaid_orders: {{ unpaid_orders | tojson | safe }},
-                                  sku_health: {{ sku_health | tojson | safe }}
+                                  unpaid_orders: {{ unpaid_orders | tojson | safe }}
                               };
 
                               // 1. Charts
@@ -1305,7 +1248,6 @@
                                populateTable("top10TableBody", mockResult.top_10_skus, [], 'orders');
                                populateTable("top10ReturnsTableBody", mockResult.top_10_returns, [], 'returns');
                                populateTable("unpaidTableBody", mockResult.unpaid_orders, [], 'unpaid');
-                               populateTable("healthTableBody", mockResult.sku_health, [], 'health');
 
                                document.getElementById("summarySection").style.display = "block";
                                document.getElementById("tabSection").style.display = "block";

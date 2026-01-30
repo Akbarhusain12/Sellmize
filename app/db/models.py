@@ -67,6 +67,7 @@ class Transaction(db.Model):
     order_date = db.Column(db.Date)
     quantity = db.Column(db.Integer)
     total_amount = db.Column(db.Float)
+    real_revenue = db.Column(db.Float)
     product_cost = db.Column(db.Float)
     total_cost = db.Column(db.Float)
     status = db.Column(db.String)

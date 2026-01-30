@@ -1,3 +1,4 @@
+from datetime import timedelta
 import os
 from dotenv import load_dotenv
 
@@ -15,7 +16,6 @@ class Config:
     UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads')
     OUTPUT_FOLDER = os.path.join(BASE_DIR, 'static', 'output')
     SESSION_FILE_DIR = os.path.join(BASE_DIR, 'flask_session_data')
-
 
 
 

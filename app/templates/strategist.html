@@ -1,0 +1,805 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Strategist Engine - SellMize AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: { sans: ["Inter", "sans-serif"] },
+            colors: {
+              brand: {
+                50: "#eef2ff",
+                100: "#e0e7ff",
+                200: "#c7d2fe",
+                300: "#a5b4fc",
+                400: "#818cf8",
+                500: "#6366f1",
+                600: "#4f46e5",
+                700: "#4338ca",
+                800: "#3730a3",
+                900: "#312e81",
+              },
+              slate: { 850: "#1e293b" },
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      .nav-item {
+        position: relative;
+        color: #64748b;
+        font-weight: 500;
+        transition: color 0.2s;
+      }
+      .nav-item:hover,
+      .nav-item.active {
+        color: #4f46e5;
+      }
+      .nav-item::after {
+        content: "";
+        position: absolute;
+        bottom: -24px;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background-color: #4f46e5;
+        transform: scaleX(0);
+        transition: transform 0.2s;
+      }
+      .nav-item.active::after {
+        transform: scaleX(1);
+      }
+      .priority-high {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      }
+      .priority-medium {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      }
+      .priority-low {
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+      }
+      .filter-btn {
+        background: #f1f5f9;
+        color: #64748b;
+      }
+      .filter-btn:hover {
+        background: #e2e8f0;
+      }
+      .filter-btn.active {
+        background: #4f46e5 !important;
+        color: white !important;
+      }
+    </style>
+  </head>
+
+  <body
+    class="bg-slate-50 min-h-screen flex flex-col text-slate-900 antialiased"
+  >
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
+      <nav
+        class="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between"
+      >
+        <div class="flex items-center gap-3">
+          <div
+            class="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center shadow-sm"
+          >
+            <svg
+              class="w-5 h-5 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2.5"
+                d="M13 10V3L4 14h7v7l9-11h-7z"
+              ></path>
+            </svg>
+          </div>
+          <span class="text-xl font-bold text-slate-900 tracking-tight"
+            >SellMize AI</span
+          >
+        </div>
+
+        <div class="hidden md:flex items-center space-x-8">
+          <a href="{{ url_for('dashboard.index') }}" class="nav-item"
+            >Dashboard</a
+          >
+          <a href="{{ url_for('analyzer_page.analyzer') }}" class="nav-item"
+            >Profit Analyzer</a
+          >
+          <a
+            href="{{ url_for('strategist_bp.strategist_engine') }}"
+            class="text-brand-600 font-medium transition-colors"
+            >Strategist</a
+          >
+          <a
+            href="{{ url_for('marketlens.unified_market_api') }}"
+            class="nav-item"
+            >MarketLens</a
+          >
+          <a
+            href="{{ url_for('content.generate_content_api') }}"
+            class="nav-item"
+            >Content Gen</a
+          >
+        </div>
+
+        <div class="flex items-center gap-4">
+          {% if current_user.is_authenticated %}
+          <div class="hidden sm:flex flex-col items-end mr-2">
+            <span class="text-sm font-semibold text-slate-700"
+              >{{ current_user.name or current_user.email }}</span
+            >
+            <a
+              href="{{ url_for('auth.logout') }}"
+              class="text-xs text-red-500 hover:text-red-700 font-medium transition-colors"
+              >Sign out</a
+            >
+          </div>
+          <div
+            class="w-9 h-9 bg-brand-100 text-brand-700 rounded-full flex items-center justify-center font-bold text-sm border border-brand-200 cursor-default"
+          >
+            {{ current_user.email[0].upper() }}
+          </div>
+          {% else %}
+          <a
+            href="{{ url_for('auth.login') }}"
+            class="text-sm font-medium text-slate-600 hover:text-brand-600 transition-colors"
+            >Log in</a
+          >
+          <a
+            href="{{ url_for('auth.register') }}"
+            class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+            >Get Started</a
+          >
+          {% endif %}
+        </div>
+      </nav>
+    </header>
+
+    <main class="container mx-auto px-4 sm:px-6 py-8 flex-grow">
+      {% with messages = get_flashed_messages(with_categories=true) %} {% if
+      messages %} {% for category, message in messages %}
+      <div
+        class="mb-6 p-4 rounded-lg flex items-center gap-3 shadow-sm border {% if category == 'error' %}bg-red-50 text-red-700 border-red-200{% elif category == 'warning' %}bg-orange-50 text-orange-700 border-orange-200{% elif category == 'info' %}bg-blue-50 text-blue-700 border-blue-200{% else %}bg-emerald-50 text-emerald-700 border-emerald-200{% endif %}"
+      >
+        <svg
+          class="w-5 h-5 flex-shrink-0"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          {% if category == 'error' %}
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          ></path>
+          {% else %}
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+          ></path>
+          {% endif %}
+        </svg>
+        <span class="font-medium">{{ message }}</span>
+      </div>
+      {% endfor %} {% endif %} {% endwith %} {% if success %}
+      <div class="max-w-7xl mx-auto">
+        <div
+          class="mb-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6"
+        >
+          <div>
+            <h1 class="text-3xl font-bold text-slate-900 mb-2">Strategist</h1>
+            <p class="text-slate-600 text-lg">AI-powered forecasting</p>
+            <p class="text-sm text-slate-400 mt-1">
+              Data Period: {{ data_period_days }} days | Last Updated: {{
+              last_data_date }}
+            </p>
+          </div>
+          <div
+            class="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-50 border border-brand-200"
+          >
+            <div
+              class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"
+            ></div>
+            <span class="text-sm font-bold text-brand-700"
+              >AI Model Active</span
+            >
+          </div>
+        </div>
+
+        {% if insights %}
+        <div class="grid md:grid-cols-3 gap-4 mb-8">
+          {% for insight in insights %}
+          <div
+            class="bg-white rounded-xl border border-slate-200 shadow-sm {% if insight.type == 'success' %}border-green-200 bg-green-50/30{% elif insight.type == 'warning' %}border-orange-200 bg-orange-50/30{% else %}border-blue-200 bg-blue-50/30{% endif %} p-5"
+          >
+            <div class="flex items-start gap-3">
+              <span class="text-3xl">{{ insight.icon }}</span>
+              <div class="flex-1">
+                <h3 class="font-bold text-slate-900 mb-1">
+                  {{ insight.title }}
+                </h3>
+                <p class="text-sm text-slate-600">{{ insight.message }}</p>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <div
+          class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 sm:p-8 mb-8"
+        >
+          <div
+            class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4"
+          >
+            <div>
+              <h2 class="text-xl font-bold text-slate-900 mb-2">
+                Revenue Forecast
+              </h2>
+              <p class="text-sm text-slate-500">
+                AI-predicted revenue trend with confidence intervals
+              </p>
+            </div>
+            <div class="flex items-center gap-3">
+              <label class="text-sm font-semibold text-slate-600">View:</label>
+              <select
+                id="forecastPeriod"
+                onchange="updateForecastChart()"
+                class="px-4 py-2 border border-slate-300 rounded-lg font-semibold text-slate-700 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 outline-none transition-all cursor-pointer bg-white"
+              >
+                <option value="7day">Next 7 Days</option>
+                <option value="15day">Next 15 Days</option>
+                <option value="30day" selected>Next 30 Days</option>
+                <option value="weekly">Weekly View</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="bg-brand-50 rounded-lg p-4 border border-brand-200">
+              <p class="text-xs font-bold text-brand-600 uppercase mb-1">
+                Expected Revenue
+              </p>
+              <p
+                id="expectedRevenue"
+                class="text-2xl font-extrabold text-brand-700"
+              >
+                ₹{{ "{:,.0f}".format(predicted_revenue) }}
+              </p>
+            </div>
+            <div class="bg-green-50 rounded-lg p-4 border border-green-200">
+              <p class="text-xs font-bold text-green-600 uppercase mb-1">
+                Best Case
+              </p>
+              <p id="maxRevenue" class="text-2xl font-extrabold text-green-700">
+                ₹{{ "{:,.0f}".format(revenue_range['max']) }}
+              </p>
+            </div>
+            <div class="bg-orange-50 rounded-lg p-4 border border-orange-200">
+              <p class="text-xs font-bold text-orange-600 uppercase mb-1">
+                Worst Case
+              </p>
+              <p
+                id="minRevenue"
+                class="text-2xl font-extrabold text-orange-700"
+              >
+                ₹{{ "{:,.0f}".format(revenue_range['min']) }}
+              </p>
+            </div>
+            <div class="bg-violet-50 rounded-lg p-4 border border-violet-200">
+              <p class="text-xs font-bold text-violet-600 uppercase mb-1">
+                Avg Daily
+              </p>
+              <p id="avgDaily" class="text-2xl font-extrabold text-violet-700">
+                ₹{{ "{:,.0f}".format(forecasts['30day']['avg_daily_revenue']) }}
+              </p>
+            </div>
+          </div>
+          <div class="h-96 w-full"><canvas id="forecastChart"></canvas></div>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-6 mb-8">
+          <div
+            class="bg-white rounded-xl border border-slate-200 shadow-sm p-6"
+          >
+            <h3 class="text-lg font-bold text-slate-900 mb-2">
+              Orders by Day of Week
+            </h3>
+            <p class="text-sm text-slate-500 mb-6">
+              Identify peak ordering days
+            </p>
+            <div class="h-72"><canvas id="weekdayChart"></canvas></div>
+          </div>
+
+          <div
+            class="bg-white rounded-xl border border-slate-200 shadow-sm p-6"
+          >
+            <h3 class="text-lg font-bold text-slate-900 mb-2">
+              Daily Orders Trend (Last 30 Days)
+            </h3>
+            <p class="text-sm text-slate-500 mb-6">Order volume over time</p>
+            <div class="h-72"><canvas id="dailyOrdersChart"></canvas></div>
+          </div>
+
+          <div
+            class="bg-white rounded-xl border border-slate-200 shadow-sm p-6"
+          >
+            <h3 class="text-lg font-bold text-slate-900 mb-2">
+              Daily Revenue Trend (Last 30 Days)
+            </h3>
+            <p class="text-sm text-slate-500 mb-6">
+              Revenue performance over time
+            </p>
+            <div class="h-72"><canvas id="dailyRevenueChart"></canvas></div>
+          </div>
+
+          <div
+            class="bg-white rounded-xl border border-slate-200 shadow-sm p-6"
+          >
+            <h3 class="text-lg font-bold text-slate-900 mb-2">
+              Top Return Reasons
+            </h3>
+            <p class="text-sm text-slate-500 mb-6">
+              Hover for simplified explanations
+            </p>
+            <div class="h-72"><canvas id="returnReasonsChart"></canvas></div>
+          </div>
+        </div>
+
+        <div
+          class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-8"
+        >
+          <div
+            class="p-6 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4"
+          >
+            <div>
+              <h2 class="text-xl font-bold text-slate-900 mb-2">
+                Inventory Restock Plan
+              </h2>
+              <p class="text-sm text-slate-500">
+                AI recommendations based on demand, margins, and quality
+              </p>
+            </div>
+            <div class="flex gap-2">
+              <button
+                onclick="filterTable('all', this)"
+                class="filter-btn active px-4 py-2 rounded-lg text-sm font-bold transition-all"
+              >
+                All
+              </button>
+              <button
+                onclick="filterTable('High', this)"
+                class="filter-btn px-4 py-2 rounded-lg text-sm font-bold transition-all"
+              >
+                High Priority
+              </button>
+              <button
+                onclick="filterTable('Medium', this)"
+                class="filter-btn px-4 py-2 rounded-lg text-sm font-bold transition-all"
+              >
+                Review
+              </button>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase"
+                  >
+                    SKU
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase"
+                  >
+                    30-Day Demand
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase"
+                  >
+                    Safety Stock
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase"
+                  >
+                    Order Qty
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase"
+                  >
+                    Velocity
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase"
+                  >
+                    Net Margin
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase"
+                  >
+                    Return Rate
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase"
+                  >
+                    Priority
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase"
+                  >
+                    Verdict
+                  </th>
+                </tr>
+              </thead>
+              <tbody
+                class="bg-white divide-y divide-slate-200"
+                id="restockTable"
+              >
+                {% for item in restock_table %}
+                <tr
+                  class="hover:bg-slate-50 transition-colors"
+                  data-priority="{{ item.priority }}"
+                >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900"
+                  >
+                    {{ item.sku }}
+                  </td>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-slate-700"
+                  >
+                    {{ item.predicted_sales }} units
+                  </td>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-slate-500"
+                  >
+                    +{{ item.safety_stock }}
+                  </td>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-extrabold text-brand-600"
+                  >
+                    {{ item.recommended_order }} units
+                  </td>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-700"
+                  >
+                    {{ item.velocity }}/day
+                  </td>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-bold {% if item.margin < 10 %}text-red-600{% elif item.margin < 20 %}text-orange-600{% else %}text-emerald-600{% endif %}"
+                  >
+                    {{ item.margin }}%
+                  </td>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-bold {% if item.return_rate > 15 %}text-red-600{% elif item.return_rate > 10 %}text-orange-600{% else %}text-slate-600{% endif %}"
+                  >
+                    {{ item.return_rate }}%
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span
+                      class="px-3 py-1.5 rounded-full text-xs font-bold text-white {% if item.priority == 'High' %}priority-high{% elif item.priority == 'Medium' %}priority-medium{% else %}priority-low{% endif %}"
+                      >{{ item.priority }}</span
+                    >
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span
+                      class="px-3 py-1 rounded-full text-xs font-semibold border {{ item.verdict_class }}"
+                      >{{ item.verdict }}</span
+                    >
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td
+                    colspan="9"
+                    class="px-6 py-12 text-center text-slate-500 font-semibold"
+                  >
+                    No sufficient data to generate recommendations.
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {% else %}
+      <div class="max-w-xl mx-auto mt-20 text-center">
+        <h2 class="text-2xl font-bold text-slate-900 mb-2">
+          Strategist Engine needs data
+        </h2>
+        <p class="text-slate-500 mb-6">
+          Please run Profit Analyzer first to generate insights.
+        </p>
+        <a
+          href="{{ url_for('analyzer_page.analyzer') }}"
+          class="px-5 py-3 bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700"
+          >Run Profit Analyzer</a
+        >
+      </div>
+      {% endif %}
+    </main>
+
+    <footer class="bg-white border-t border-slate-200 pt-12 pb-8">
+      <div class="container mx-auto px-4 sm:px-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+          <div>
+            <div class="flex items-center gap-2 mb-4">
+              <div
+                class="w-6 h-6 bg-brand-600 rounded flex items-center justify-center"
+              >
+                <svg
+                  class="w-3.5 h-3.5 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  ></path>
+                </svg>
+              </div>
+              <span class="font-bold text-slate-900">SellMize AI</span>
+            </div>
+            <p class="text-slate-500 text-sm">
+              Empowering sellers with intelligent analytics.
+            </p>
+          </div>
+          <div>
+            <h4 class="font-semibold text-slate-900 mb-3 text-sm">Product</h4>
+            <ul class="space-y-2 text-sm text-slate-500">
+              <li><a href="#" class="hover:text-brand-600">Dashboard</a></li>
+              <li><a href="#" class="hover:text-brand-600">Analytics</a></li>
+              <li><a href="#" class="hover:text-brand-600">Reports</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="font-semibold text-slate-900 mb-3 text-sm">Support</h4>
+            <ul class="space-y-2 text-sm text-slate-500">
+              <li><a href="#" class="hover:text-brand-600">Help Center</a></li>
+              <li><a href="#" class="hover:text-brand-600">Contact</a></li>
+              <li><a href="#" class="hover:text-brand-600">Status</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="font-semibold text-slate-900 mb-3 text-sm">Legal</h4>
+            <ul class="space-y-2 text-sm text-slate-500">
+              <li><a href="#" class="hover:text-brand-600">Privacy</a></li>
+              <li><a href="#" class="hover:text-brand-600">Terms</a></li>
+            </ul>
+          </div>
+        </div>
+        <div
+          class="border-t border-slate-100 pt-6 text-center text-sm text-slate-400"
+        >
+          &copy; 2025 SellMize AI. All rights reserved.
+        </div>
+      </div>
+    </footer>
+
+    {% if success %}
+    <script>
+      const forecastsData = {{ forecasts | tojson }};
+      const weeklyData = {{ weekly_forecast | tojson }};
+      const weekdayData = {{ weekday_chart | tojson }};
+      const dailyOrdersData = {{ daily_orders_chart | tojson }};
+      const dailyRevenueData = {{ daily_revenue_chart | tojson }};
+      const returnReasonsData = {{ return_reasons_chart | tojson }};
+
+      // MAPPING AMAZON CODES TO PLAIN ENGLISH
+      const reasonMapper = {
+        'UND-UNKNOWN': 'Reason not specified by customer',
+        'CR-SWITCHEROO': 'Wrong item sent or swapped by customer',
+        'CR-DEFECTIVE': 'Product is faulty or not working',
+        'AMZ-PG-BAD-DESC': 'Website description was inaccurate',
+        'CR-QUALITY_UNACCEPTABLE': 'Quality did not meet expectations',
+        'CR-NOT_COMPATIBLE': 'Does not work with existing setup',
+        'AMZ-PG-APP-TOO-SMALL': 'Size is smaller than expected',
+        'CR-DAMAGED_BY_FC': 'Damaged in warehouse/shipping',
+        'CR-UNWANTED_ITEM': 'Customer changed their mind',
+        'CR-ORDERED_WRONG_ITEM': 'Customer ordered mistake',
+        'AMZ-PG-MISORDERED': 'Wrong item packed in shipment',
+        'CR-MISSED_ESTIMATED_DELIVERY': 'Arrived past the promised date',
+        'CR-FOUND_BETTER_PRICE': 'Found cheaper elsewhere',
+        'NEVER_ARRIVED': 'Package lost in transit',
+        'CR-MISSING_PARTS': 'Arrived with missing components'
+      };
+
+      let chartInstance = null;
+
+      document.addEventListener('DOMContentLoaded', () => {
+        updateForecastChart();
+        renderAdditionalCharts();
+      });
+
+      function renderAdditionalCharts() {
+        // Weekday Chart
+        new Chart(document.getElementById('weekdayChart').getContext('2d'), {
+          type: 'line',
+          data: {
+            labels: weekdayData.labels,
+            datasets: [{
+              label: 'Orders',
+              data: weekdayData.data,
+              borderColor: '#ef4444',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              borderWidth: 3,
+              tension: 0.4,
+              fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { grid: { display: false } }, y: { grid: { color: '#f1f5f9' } } }
+          }
+        });
+
+        // Daily Orders Chart
+        new Chart(document.getElementById('dailyOrdersChart').getContext('2d'), {
+          type: 'line',
+          data: {
+            labels: dailyOrdersData.labels,
+            datasets: [{
+              label: 'Orders',
+              data: dailyOrdersData.data,
+              borderColor: '#3b82f6',
+              borderWidth: 2,
+              tension: 0.4,
+              fill: false
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } }
+          }
+        });
+
+        // Daily Revenue Chart
+        new Chart(document.getElementById('dailyRevenueChart').getContext('2d'), {
+          type: 'line',
+          data: {
+            labels: dailyRevenueData.labels,
+            datasets: [{
+              label: 'Revenue',
+              data: dailyRevenueData.data,
+              borderColor: '#10b981',
+              borderWidth: 2,
+              tension: 0.4,
+              fill: false
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } }
+          }
+        });
+
+        // REFINED RETURN REASONS CHART
+        new Chart(document.getElementById('returnReasonsChart').getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: returnReasonsData.labels,
+            datasets: [{
+              label: 'Count',
+              data: returnReasonsData.data,
+              backgroundColor: '#6366f1',
+              hoverBackgroundColor: '#4f46e5',
+              borderRadius: 6,
+              barThickness: 22
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: '#1e293b',
+                padding: 12,
+                cornerRadius: 8,
+                titleFont: { family: 'Inter', weight: '700' },
+                bodyFont: { family: 'Inter' },
+                displayColors: false,
+                callbacks: {
+                  label: function(context) {
+                    const code = context.label;
+                    const desc = reasonMapper[code] || 'General return reason';
+                    return [`Quantity: ${context.parsed.x}`, `Meaning: ${desc}`];
+                  }
+                }
+              }
+            },
+            scales: {
+              x: { grid: { color: '#f1f5f9', borderDash: [4, 4] }, ticks: { font: { family: 'Inter' } } },
+              y: {
+                grid: { display: false },
+                ticks: {
+                    color: '#334155',
+                    font: { family: 'Inter', size: 11, weight: '600' }
+                }
+              }
+            }
+          }
+        });
+      }
+
+      function updateForecastChart() {
+        const period = document.getElementById('forecastPeriod').value;
+        const ctx = document.getElementById('forecastChart').getContext('2d');
+        if(chartInstance) chartInstance.destroy();
+
+        let labels, data, lower, upper;
+        const d = forecastsData[period];
+        labels = d.labels;
+        data = d.data;
+        lower = d.lower;
+        upper = d.upper;
+
+        document.getElementById('expectedRevenue').textContent = '₹' + d.total_revenue.toLocaleString('en-IN');
+        document.getElementById('maxRevenue').textContent = '₹' + d.max_revenue.toLocaleString('en-IN');
+        document.getElementById('minRevenue').textContent = '₹' + d.min_revenue.toLocaleString('en-IN');
+        document.getElementById('avgDaily').textContent = '₹' + d.avg_daily_revenue.toLocaleString('en-IN');
+
+        chartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [
+              { label: 'Predicted', data: data, borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)', fill: true, tension: 0.4 },
+              { label: 'Upper', data: upper, borderColor: 'rgba(16, 185, 129, 0.2)', borderDash: [5, 5], fill: false, tension: 0.4 },
+              { label: 'Lower', data: lower, borderColor: 'rgba(239, 68, 68, 0.2)', borderDash: [5, 5], fill: false, tension: 0.4 }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'top' } }
+          }
+        });
+      }
+
+      function filterTable(priority, btn) {
+        const rows = document.querySelectorAll('#restockTable tr');
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active', 'bg-brand-600', 'text-white'));
+        btn.classList.add('active', 'bg-brand-600', 'text-white');
+        rows.forEach(row => {
+          row.style.display = (priority === 'all' || row.dataset.priority === priority) ? '' : 'none';
+        });
+      }
+    </script>
+    {% endif %}
+  </body>
+</html>

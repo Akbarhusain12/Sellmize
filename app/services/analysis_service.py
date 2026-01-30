@@ -3,8 +3,6 @@ import logging
 import pandas as pd
 from flask import current_app
 
-from app.ml.sku_health import analyze_sku_health  # adjust path if different
-
 logger = logging.getLogger(__name__)
 
 
@@ -59,49 +57,6 @@ def load_analysis_from_file(filename):
             unpaid_orders_df = pd.DataFrame()
             unpaid_orders = []
 
-        # ---------------- MERGED DATA + SKU HEALTH ----------------
-        sku_health_rows = []
-        try:
-            merged_df = pd.read_excel(output_path, sheet_name="Merged Data")
-
-            health = analyze_sku_health(
-                merged_data=merged_df,
-                returns=top_10_returns_df,
-                unpaid_orders=unpaid_orders_df,
-                min_orders=1
-            )
-
-            scored = health.scored_df
-            scored["health_score_pred"] = scored["health_score_pred"].round(2)
-            scored["proxy_label"] = scored["proxy_label"].round(2)
-
-            def rate(x):
-                if x >= 75: return "Excellent"
-                if x >= 60: return "Good"
-                if x >= 40: return "Fair"
-                return "Poor"
-
-            scored["health_rating"] = scored["health_score_pred"].apply(rate)
-
-            scored = scored.rename(columns={
-                "SKU": "SKU",
-                "health_score_pred": "Score",
-                "proxy_label": "Rating",
-                "health_rating": "Health",
-                "key_issues": "Key_Issues",
-                "cluster": "Segment",
-                "anomaly": "Anomaly",
-            })
-
-            if "Anomaly" in scored.columns:
-                scored["Anomaly"] = scored["Anomaly"].map({True: "Yes", False: "No"})
-
-            sku_health_df = scored[["SKU", "Score", "Health", "Key_Issues", "Rating", "Anomaly"]]
-            sku_health_rows = sku_health_df.where(pd.notnull(sku_health_df), None).to_dict("records")
-
-        except Exception as e:
-            logger.warning(f"SKU health recomputation failed: {e}")
-
         # ---------------- SUMMARY DICT ----------------
         summary_dict = {}
         for _, row in summary_df.iterrows():
@@ -135,8 +90,7 @@ def load_analysis_from_file(filename):
             "top_10_skus": top_10_skus,
             "top_10_returns": top_10_returns,
             "top_states": top_states,
-            "unpaid_orders": unpaid_orders,
-            "sku_health": sku_health_rows,
+            "unpaid_orders": unpaid_orders
         }
 
     except Exception as e:

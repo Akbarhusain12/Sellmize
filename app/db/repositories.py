@@ -1,4 +1,3 @@
-# DB/db_writer.py
 import uuid
 from datetime import datetime
 import pandas as pd
@@ -78,7 +77,7 @@ def insert_transactions_incrementally(analysis_id, merged_data: list):
     new_transactions = []
     
     for row in merged_data:
-        order_id = row.get("amazon-order-id")
+        order_id = row.get("amazon_order_id")
         sku = row.get("sku")
         
         # Skip if key fields are missing
@@ -109,6 +108,7 @@ def insert_transactions_incrementally(analysis_id, merged_data: list):
             order_date=parse_date(row.get("order_date")),
             quantity=row.get("quantity"),
             total_amount=row.get("total"),
+            real_revenue=row.get("real_revenue"),
             product_cost=row.get("Product Cost") or row.get("product_cost"),
             total_cost=row.get("Total Cost"),
             status=row.get("Status"),

@@ -10,7 +10,6 @@ from flask import current_app as current
 from app.utils.file_utils import save_uploaded_files, convert_txt_to_excel
 from app.services.ecommerce_service import process_data
 from app.services.analysis_service import load_analysis_from_file
-from app.ml.sku_health import analyze_sku_health
 from app.db.repositories import save_full_analysis   # adjust to your actual path
 
 import logging
@@ -37,8 +36,7 @@ def analyzer():
         'top_10_skus': [],
         'top_10_returns': [],
         'top_states': [],
-        'unpaid_orders': [],
-        'sku_health': []
+        'unpaid_orders': []
     }
 
     output_filename = session.get('output_filename')
@@ -53,7 +51,6 @@ def analyzer():
             context['top_10_returns'] = loaded_data.get('top_10_returns', [])
             context['top_states'] = loaded_data.get('top_states', [])
             context['unpaid_orders'] = loaded_data.get('unpaid_orders', [])
-            context['sku_health'] = loaded_data.get('sku_health', [])
             context['expenses'] = session.get('dynamic_expenses', {})
 
     return render_template('analyzer.html', **context)
@@ -142,11 +139,32 @@ def analyze():
             top_10_returns_list = []
             top_states_list = []
             unpaid_orders_list = []
-            sku_health_rows = []
             merged_df = pd.DataFrame() 
 
             # Load Sheets
             summary_df = pd.read_excel(output_path, sheet_name='Summary')
+            
+            try:
+                merged_df = pd.read_excel(output_path, sheet_name='Merged Data')
+                merged_df.columns = (
+                    merged_df.columns
+                    .str.strip()
+                    .str.lower()
+                    .str.replace(" ", "_")
+                    .str.replace("-", "_")
+                )
+                logger.info(f"✅ Loaded merged data: {len(merged_df)} rows")
+            except Exception as e:
+                logger.error(f"❌ Failed to load Merged Data: {e}")
+                merged_df = pd.DataFrame()
+
+            if 'real_revenue' not in merged_df.columns:
+                logger.error("❌ real_revenue missing in merged data BEFORE DB save")
+                return jsonify({
+                    "success": False,
+                    "error": "real_revenue missing in merged data. Analyzer output invalid."
+                }), 500
+
             
             # --- FIX 1: Sanitize Top 10 SKUs ---
             top_10_df = pd.read_excel(output_path, sheet_name='Top 10 SKUs')
@@ -192,38 +210,6 @@ def analyze():
                 unpaid_orders_list = unpaid_orders_df.where(pd.notnull(unpaid_orders_df), None).to_dict('records')
             except: unpaid_orders_df = pd.DataFrame()
 
-            # Re-run SKU Health
-            try:
-                merged_df = pd.read_excel(output_path, sheet_name='Merged Data')
-                
-                # Sanitize merged_df before logic
-                merged_df = merged_df.where(pd.notnull(merged_df), None)
-
-                if 'sku' in merged_df.columns:
-                    health_res = analyze_sku_health(
-                        merged_data=merged_df, 
-                        returns=pd.DataFrame(top_10_returns_list), 
-                        unpaid_orders=unpaid_orders_df, 
-                        min_orders=1
-                    )
-                    s_df = health_res.scored_df
-                    s_df['health_score_pred'] = s_df['health_score_pred'].round(2)
-                    s_df['proxy_label'] = s_df['proxy_label'].round(2)
-                    s_df['health_rating'] = s_df['health_score_pred'].apply(lambda x: "Excellent" if x>=75 else "Good" if x>=60 else "Fair" if x>=40 else "Poor")
-                    s_df = s_df.rename(columns={'SKU':'SKU', 'health_score_pred':'Score', 'proxy_label':'Rating', 'health_rating':'Health', 'key_issues':'Key_Issues', 'anomaly':'Anomaly', 'cluster':'Segment'})
-                    
-                    disp = ['SKU', 'Score', 'Health', 'Key_Issues']
-                    if 'Rating' in s_df.columns: disp.append('Rating')
-                    if 'Anomaly' in s_df.columns: 
-                        s_df['Anomaly'] = s_df['Anomaly'].map({True:'Yes', False:'No'})
-                        disp.append('Anomaly')
-                    
-                    # --- FIX 6: Sanitize Final Health Output ---
-                    final_health_df = s_df[disp]
-                    sku_health_rows = final_health_df.where(pd.notnull(final_health_df), None).to_dict('records')
-
-            except Exception as e:
-                logger.error(f"SKU Health/Merge error: {e}")
 
             # Save Session
             session['dynamic_expenses'] = dynamic_expenses 
@@ -246,8 +232,7 @@ def analyze():
             return jsonify({
                 'success': True, 'filename': output_filename, 'summary': summary_dict,
                 'top_10_skus': top_10_list, 'top_10_returns': top_10_returns_list,
-                'top_states': top_states_list, 'unpaid_orders': unpaid_orders_list,
-                'sku_health': sku_health_rows
+                'top_states': top_states_list, 'unpaid_orders': unpaid_orders_list
             })
 
         except Exception as e:

@@ -7,20 +7,6 @@ import chardet
 import logging
 logger = logging.getLogger(__name__)
 
-# Attempt to import the custom ML module, but don't fail if it's not present
-try:
-    from app.ml.sku_health import build_and_score_sku_health
-except ImportError:
-    logger.warning("Warning: 'sku_health' module not found. SKU Health Score will be skipped.")
-    # Define a placeholder function if the import fails
-    def build_and_score_sku_health(*args, **kwargs):
-        logger.warning("SKU Health module not available, skipping analysis.")
-        return {
-            'scored_df': pd.DataFrame(),
-            'train_metrics': {},
-            'importances': pd.DataFrame()
-        }
-
 # Suppress warnings
 warnings.filterwarnings('ignore')
 
@@ -254,6 +240,8 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
 
             logger.warning(f"📅 Date filtering applied: {len(filtered_orders)} records remain "
                   f"from {start_date or 'start'} to {end_date or 'end'}.")
+            
+            
 
         except Exception as e:
             logger.warning(f"⚠️ Date filtering skipped due to error: {e}")
@@ -282,6 +270,74 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
             logger.warning(f"⚠️ Could not filter Return file by date ({return_date_col}): {e}")
     else:
         logger.warning("⚠️ No valid 'Return request date' column found or all values are missing in Return file.")
+
+    # ================== ANALYTICS SNAPSHOT ==================
+
+    orders_snapshot = filtered_orders.copy()
+    orders_snapshot['order_date'] = pd.to_datetime(
+        orders_snapshot['order_date'], errors='coerce'
+    )
+
+    orders_snapshot = orders_snapshot.dropna(subset=['order_date'])
+
+    orders_snapshot['weekday'] = orders_snapshot['order_date'].dt.dayofweek
+
+    orders_by_weekday = (
+        orders_snapshot['weekday']
+        .value_counts()
+        .sort_index()
+        .reset_index()
+    )
+
+    orders_by_weekday.columns = ['weekday', 'order_count']
+
+    weekday_map = {
+        0: 'Monday', 1: 'Tuesday', 2: 'Wednesday',
+        3: 'Thursday', 4: 'Friday', 5: 'Saturday', 6: 'Sunday'
+    }
+
+    orders_by_weekday['weekday'] = orders_by_weekday['weekday'].map(weekday_map)
+
+    
+    daily_orders = (
+        orders_snapshot
+        .set_index('order_date')
+        .resample('D')
+        .size()
+        .reset_index(name='order_count')
+    )
+    orders_snapshot['item_price'] = pd.to_numeric(
+        orders_snapshot['item_price'], errors='coerce'
+    ).fillna(0)
+
+    orders_snapshot['revenue'] = (
+        orders_snapshot['quantity'] * orders_snapshot['item_price']
+    )
+
+    daily_revenue = (
+        orders_snapshot
+        .set_index('order_date')['revenue']
+        .resample('D')
+        .sum()
+        .reset_index()
+    )
+    
+    return_reason_col = find_column(Return, [
+        'Return reason', 'return reason', 'reason'
+    ])
+
+    if return_reason_col:
+        return_reasons = (
+            Return[return_reason_col]
+            .value_counts()
+            .reset_index()
+        )
+        return_reasons.columns = ['reason', 'count']
+    else:
+        return_reasons = pd.DataFrame(columns=['reason', 'count'])
+
+
+
 
     # --- 3. Pre-Merge Analysis (Top 10s) ---
     logger.warning("--- 3. Running Pre-Merge Analysis ---")
@@ -366,6 +422,13 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     consolidated_sku_orders = filtered_orders[['amazon-order-id', 'sku']].copy()
     consolidated_sku_orders['sku'] = consolidated_sku_orders['sku'].astype(str).str.strip().str.upper()
 
+    # --- 4d. Calculate REAL Revenue (Demand-based) ---
+    if 'item_price' in merged_data.columns:
+        merged_data['item_price'] = pd.to_numeric(merged_data['item_price'], errors='coerce').fillna(0)
+        merged_data['real_revenue'] = merged_data['quantity'] * merged_data['item_price']
+    else:
+        raise Exception("❌ item_price missing — cannot compute real_revenue")
+
     # Keep only SKUs that exist in both orders and payments
     merged_data = merged_data.merge(
         consolidated_sku_orders[['amazon-order-id', 'sku']],
@@ -374,7 +437,7 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     )
     
     # Keep relevant columns
-    keep_cols = ['amazon-order-id', 'sku', 'quantity', 'total', 'item_price', 'order_date', 'ship_state']
+    keep_cols = ['amazon-order-id', 'sku', 'quantity', 'total', 'item_price', 'real_revenue', 'order_date', 'ship_state']
     final_keep_cols = [col for col in keep_cols if col in merged_data.columns]
     merged_data = merged_data[final_keep_cols]
 
@@ -491,35 +554,17 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
 
     # --- 11. Reorder Columns for Final Report ---
     cols = [
-        'amazon-order-id', 'order_date', 'sku', 
-        'quantity', 'total', 'Product Cost', 'Total Cost', 
+        'amazon-order-id', 'order_date', 'sku',
+        'quantity', 'item_price', 'real_revenue',
+        'total', 'Product Cost', 'Total Cost',
         'Status', 'ship_state', 'Amz Fees'
     ]
+
     final_cols = [col for col in cols if col in merged_data.columns]
     merged_data = merged_data[final_cols]
     logger.warning("📈 Columns successfully ordered.")
-
-    # --- 12. Run Advanced ML SKU Health Score ---
-    try:
-        logger.warning("🤖 Training Advanced SKU Health Score Model...")
-        sku_health_output = build_and_score_sku_health(
-            merged_data=merged_data,
-            Return=Return,
-            unpaid_orders=unpaid_orders,
-            output_dir=output_folder
-        )
-        sku_health_df = sku_health_output['scored_df']
-        model_metrics = sku_health_output['train_metrics']
-        feature_importances = sku_health_output['importances']
-        logger.warning(f"🎯 SKU Health Model Trained | R²={model_metrics.get('r2', 'N/A'):.3f} | RMSE={model_metrics.get('rmse', 'N/A'):.3f}")
-        logger.warning("💡 Top Important Features:")
-        logger.warning(feature_importances.head(10))
-    except Exception as e:
-        logger.warning(f"⚠️ SKU Health Score Model Failed: {e}")
-        sku_health_df = pd.DataFrame()
-        
-    # --- 13. Save to Excel ---
-    logger.warning("--- 9. Saving Final Report ---")
+    
+    logger.warning("--- Saving Final Report ---")
     current_date = datetime.now().strftime('%d-%B-%Y-%H-%M')
     file_name = f"{current_date}.xlsx"
     output_path = os.path.join(output_folder, file_name)
@@ -531,7 +576,11 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         top_10_returns.to_excel(writer, sheet_name='Top 10 Returns', index=False)
         top_10_states.to_excel(writer, sheet_name='Top 10 States', index=False)
         unpaid_orders.to_excel(writer, sheet_name='Unpaid Orders', index=False)
-        sku_health_df.to_excel(writer, sheet_name='SKU Health Score', index=False)
+        orders_by_weekday.to_excel(writer, sheet_name='Orders_Weekday', index=False)
+        daily_orders.to_excel(writer, sheet_name='Daily_Orders', index=False)
+        daily_revenue.to_excel(writer, sheet_name='Daily_Revenue', index=False)
+        return_reasons.to_excel(writer, sheet_name='Return_Reasons', index=False)
+
 
     logger.warning(f"✅ Processing complete. File saved at: {output_path}")
     return file_name
