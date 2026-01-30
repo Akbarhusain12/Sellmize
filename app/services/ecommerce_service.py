@@ -227,6 +227,7 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     if 'order_date' in filtered_orders.columns and filtered_orders['order_date'].notna().any():
         try:
             # Convert to datetime safely
+            temp_date = pd.to_datetime(filtered_orders['order_date'], errors='coerce')
             filtered_orders['order_date'] = pd.to_datetime(filtered_orders['order_date'], errors='coerce').dt.date
 
             # Apply filters if provided
@@ -365,7 +366,7 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
 
     # --- Return file columns ---
     return_order_id_col = find_column(Return, ['Order ID', 'order id', 'orderid', 'order-id'])
-    return_type_col = find_column(Return, ['Return type', 'return type', 'returntype', 'return_type', 'status'])
+    return_type_col = find_column(Return, ['Return type', 'return type', 'returntype', 'return_type', 'Status'])
 
     if not all([return_order_id_col, return_type_col]):
         raise Exception(f"❌ Missing required columns in return files. Found columns: {Return.columns.tolist()}")
@@ -487,17 +488,37 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     # --- 7. Final Merge & Fee Calculation ---
     logger.warning("--- 7. Merging Returns & Fees ---")
     
+    raw_reason_col = find_column(Return, ['Return reason', 'reason', 'return-reason', 'detailed-reason'])
+    
     # Merge Return Status
     filtered_return['Order ID'] = filtered_return['Order ID'].astype(str)
-    filtered_return = filtered_return.drop_duplicates(subset=['Order ID'], keep='last')
-    merged_data = pd.merge(
-        merged_data,
-        filtered_return[['Order ID', 'Return type']],
-        left_on='amazon-order-id',
-        right_on='Order ID',
-        how='left'
-    )
+    if raw_reason_col:
+        # We take Order ID and the actual Reason text
+        return_lookup = Return[[return_order_id_col, raw_reason_col]].copy()
+        return_lookup.columns = ['Order ID', 'raw_return_reason']
+        # Drop duplicates to avoid multiplying rows during merge
+        return_lookup = return_lookup.drop_duplicates(subset=['Order ID'], keep='last')
+        
+        # Merge this into our main merged_data
+        merged_data = pd.merge(
+            merged_data,
+            return_lookup,
+            left_on='amazon-order-id',
+            right_on='Order ID',
+            how='left'
+        )
+        # Clean up
+        merged_data.drop(columns=['Order ID'], inplace=True, errors='ignore')
+    else:
+        merged_data['raw_return_reason'] = "Unknown"
+
+    # Also keep the status (Return/Refund)
     merged_data.rename(columns={'Return type': 'Status'}, inplace=True)
+
+    # If merge failed to create 'Status', create it as empty
+    if 'Status' not in merged_data.columns:
+        merged_data['Status'] = pd.NA
+
     merged_data.drop(columns=['Order ID'], inplace=True, errors='ignore')
 
     # Add Amz Fees
@@ -510,12 +531,21 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
 
     # --- 8. Calculate Final Summary ---
     logger.warning("--- 8. Calculating Final Summary ---")
-    
-    # Filter to non-returned items for profit calculation
-    filtered_na = merged_data[merged_data['Status'].isna()]
-    total_quantity = filtered_na['quantity'].sum()
-    total_payment = filtered_na['total'].sum()
-    total_cost = filtered_na['Total Cost'].sum()
+    # Find 'Status' or 'status' dynamically
+    status_col = next((c for c in merged_data.columns if c.lower() == 'status'), None)
+
+    if status_col:
+        # Items NOT returned (where Status is NaN)
+        filtered_na = merged_data[merged_data[status_col].isna()]
+        logger.info(f"Filtered {len(filtered_na)} non-returned items for profit calculation.")
+    else:
+        # Fallback: if column is missing, treat all as non-returned so profit isn't 0
+        filtered_na = merged_data.copy()
+        logger.warning("Status column not found in merged_data; using all records for summary.")
+
+    total_quantity = filtered_na['quantity'].sum() if 'quantity' in filtered_na.columns else 0
+    total_payment = filtered_na['total'].sum() if 'total' in filtered_na.columns else 0
+    total_cost = filtered_na['Total Cost'].sum() if 'Total Cost' in filtered_na.columns else 0
 
     # Calculate total returned quantity directly from Return file
     return_quantity_col = find_column(Return, ['Return quantity', 'return quantity', 'quantity', 'qty', 'returned qty'])
@@ -557,7 +587,7 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         'amazon-order-id', 'order_date', 'sku',
         'quantity', 'item_price', 'real_revenue',
         'total', 'Product Cost', 'Total Cost',
-        'Status', 'ship_state', 'Amz Fees'
+        'Status','raw_return_reason', 'ship_state', 'Amz Fees'
     ]
 
     final_cols = [col for col in cols if col in merged_data.columns]

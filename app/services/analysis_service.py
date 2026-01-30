@@ -7,36 +7,41 @@ logger = logging.getLogger(__name__)
 
 
 def load_analysis_from_file(filename):
-    """
-    Load analysis data from generated Excel report.
-    Rebuilds derived analytics that were not stored directly.
-    """
     try:
         output_path = os.path.join(current_app.config['OUTPUT_FOLDER'], filename)
-
         if not os.path.exists(output_path):
-            logger.error(f"File not found: {output_path}")
             return None
 
-        logger.info(f"Loading analysis from: {output_path}")
-
-        # ---------------- SUMMARY ----------------
+        # --- 1. Load Summary (Mandatory) ---
         summary_df = pd.read_excel(output_path, sheet_name="Summary")
-
-        # ---------------- TOP SKUS ----------------
+        
+        # --- 2. Load Top SKUs with Fallback ---
         try:
-            top_10_skus = pd.read_excel(output_path, sheet_name="Top 10 SKUs")
-            top_10_skus = top_10_skus.where(pd.notnull(top_10_skus), None).to_dict("records")
+            top_10_skus_df = pd.read_excel(output_path, sheet_name="Top 10 SKUs")
         except Exception:
-            top_10_skus = []
+            # SAFETY VALVE: Re-calculate from Merged Data if sheet is missing
+            logger.warning("Top 10 SKUs sheet missing. Re-calculating from Merged Data.")
+            main_df = pd.read_excel(output_path, sheet_name="Merged Data")
+            top_10_skus_df = main_df.groupby('sku')['quantity'].sum().nlargest(10).reset_index()
+            top_10_skus_df.columns = ['sku', 'quantity']
+        
+        top_10_skus = top_10_skus_df.where(pd.notnull(top_10_skus_df), None).to_dict("records")
 
-        # ---------------- TOP RETURNS ----------------
+        # --- 3. Load Top Returns ---
+        # NOTE: We now check for 'raw_return_reason' which we added to ecommerce_service
         try:
             top_10_returns_df = pd.read_excel(output_path, sheet_name="Top 10 Returns")
-            top_10_returns = top_10_returns_df.where(pd.notnull(top_10_returns_df), None).to_dict("records")
         except Exception:
-            top_10_returns_df = pd.DataFrame()
-            top_10_returns = []
+            logger.warning("Top 10 Returns sheet missing. Checking Merged Data.")
+            main_df = pd.read_excel(output_path, sheet_name="Merged Data")
+            # If we have the new raw_return_reason column, use it!
+            if 'raw_return_reason' in main_df.columns:
+                top_10_returns_df = main_df['raw_return_reason'].value_counts().nlargest(10).reset_index()
+                top_10_returns_df.columns = ['reason', 'count']
+            else:
+                top_10_returns_df = pd.DataFrame()
+        
+        top_10_returns = top_10_returns_df.where(pd.notnull(top_10_returns_df), None).to_dict("records")
 
         # ---------------- TOP STATES ----------------
         try:
@@ -61,15 +66,9 @@ def load_analysis_from_file(filename):
         summary_dict = {}
         for _, row in summary_df.iterrows():
             metric = str(row["Metric"]).strip()
-            value = row["Value"]
-
-            try:
-                value = float(value)
-                if pd.isna(value):  # Check if it turned into NaN
-                    value = 0.0
-            except Exception:
-                value = 0.0
-
+            # Handle potential NaN in Value column
+            value = 0.0 if pd.isna(row["Value"]) else row["Value"]
+            
             mapping = {
                 "Total Quantity": "total_quantity",
                 "Total Return Quantity": "total_return_quantity",
@@ -83,7 +82,9 @@ def load_analysis_from_file(filename):
             if metric in mapping:
                 summary_dict[mapping[metric]] = value
             else:
-                summary_dict["expense_" + metric.lower().replace(" ", "_")] = value
+                # Store dynamic expenses with a clean key
+                clean_metric = metric.lower().replace(" ", "_").replace("-", "_")
+                summary_dict[f"expense_{clean_metric}"] = value
 
         return {
             "summary_data": summary_dict,
@@ -94,5 +95,5 @@ def load_analysis_from_file(filename):
         }
 
     except Exception as e:
-        logger.exception(f"Failed loading analysis from file: {e}")
+        logger.exception(f"Critical failure loading analysis file: {e}")
         return None
