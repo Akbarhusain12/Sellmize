@@ -7,10 +7,9 @@ from app.db.connection import init_app as init_db
 
 from app.api.routes_dashboard import dashboard_bp
 from app.api.routes_analyzer import analyzer_page, analyzer_api
-from app.api.routes_marketlens import marketlens_bp
-from app.api.routes_content import content_bp
 from app.api.routes_auth import auth_bp
 from app.api.routes_strategist import strategist_bp
+from app.api.routes_mize import mize_bp
 from app.db.models import User
 
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -40,10 +39,9 @@ def create_app():
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(strategist_bp, url_prefix="/strategist")
     
-
-    app.register_blueprint(marketlens_bp, url_prefix="/marketlens")
-    app.register_blueprint(content_bp, url_prefix="/content")
-
+    app.register_blueprint(mize_bp)
+    
+    
 
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
     os.makedirs(app.config["OUTPUT_FOLDER"], exist_ok=True)

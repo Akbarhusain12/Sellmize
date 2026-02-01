@@ -139,3 +139,27 @@ class StateSales(db.Model):
     rank = db.Column(db.Integer)
     state = db.Column(db.String)
     quantity = db.Column(db.Integer)
+    
+    
+    
+class ChatSession(db.Model):
+    __tablename__ = 'chat_sessions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    title = db.Column(db.String(255), nullable=True) # e.g., "Product Search for Nike"
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationship to get all messages in this session
+    messages = db.relationship('ChatMessage', backref='session', lazy=True, cascade="all, delete-orphan")
+
+class ChatMessage(db.Model):
+    __tablename__ = 'chat_messages'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey('chat_sessions.id'), nullable=False)
+    sender = db.Column(db.String(50), nullable=False) 
+    content = db.Column(db.Text, nullable=False)      
+    meta_data = db.Column(JSON, nullable=True)       
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
