@@ -69,24 +69,22 @@ def get_or_create_analysis(user_id: int,file_name: str, start_date, end_date, su
 
 def insert_transactions_incrementally(analysis_id, merged_data: list):
     """
-    Insert only NEW transactions (based on composite key).
-    Returns: (new_count, skipped_count, new_transactions_list)
+    Insert only NEW transactions matching the 14-column report structure.
     """
     new_count = 0
     skipped_count = 0
     new_transactions = []
     
     for row in merged_data:
-        order_id = row.get("amazon_order_id")
+        order_id = row.get("amazon_order_id") or row.get("amazon-order-id")
         sku = row.get("sku")
         
         # Skip if key fields are missing
         if not order_id or not sku:
-            logger.warning(f"⚠️ Skipping row with missing order_id or sku: {row}")
             skipped_count += 1
             continue
         
-        # Check if this combination already exists
+        # Check for duplicates
         exists = Transaction.query.filter(
             and_(
                 Transaction.amazon_order_id == order_id,
@@ -97,29 +95,40 @@ def insert_transactions_incrementally(analysis_id, merged_data: list):
         
         if exists:
             skipped_count += 1
-            logger.debug(f"⏭️ Skipping duplicate: ({order_id}, {sku})")
             continue
         
-        # Insert new transaction
+        # --- MAPPING 14 COLUMNS TO DB ---
         new_txn = Transaction(
             analysis_id=analysis_id,
             amazon_order_id=order_id,
             sku=sku,
+            
+            # 1. Dates & Qty
             order_date=parse_date(row.get("order_date")),
             quantity=row.get("quantity"),
-            total_amount=row.get("total"),
-            real_revenue=row.get("real_revenue"),
-            product_cost=row.get("Product Cost") or row.get("product_cost"),
-            total_cost=row.get("Total Cost"),
-            status=row.get("Status"),
+            
+            # 2. Money Fields (Handling potential NaNs with 'or 0.0')
+            item_price=row.get("item_price") or row.get("item-price") or 0.0,
+            revenue=row.get("revenue") or 0.0,
+            payment_amount=row.get("Payment Amount") or row.get("payment_amount") or 0.0,
+            
+            # 3. Costs & Fees
+            product_cost=row.get("Product Cost") or row.get("product_cost") or 0.0,
+            total_cost=row.get("Total Cost") or row.get("total_cost") or 0.0,
+            amz_fees=row.get("Amz Fees") or row.get("amz_fees") or 0.0,
+            
+            # 4. Status & Details
+            status=row.get("Status") or row.get("status"),
             ship_state=row.get("ship_state"),
-            amz_fees=row.get("Amz Fees")
+            is_paid=str(row.get("Is Paid") or row.get("is_paid")),  # Convert boolean to string if needed
+            return_reason=row.get("raw_return_reason") or row.get("return_reason")
         )
+        
         db.session.add(new_txn)
         new_transactions.append(row)
         new_count += 1
     
-    logger.info(f"📝 Transactions: {new_count} new, {skipped_count} duplicates skipped")
+    logger.info(f"📝 Transactions: {new_count} new, {skipped_count} skipped")
     return new_count, skipped_count, new_transactions
 
 

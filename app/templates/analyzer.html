@@ -203,6 +203,38 @@
           transform: rotate(360deg);
         }
       }
+
+      /* --- Helper for tooltips (New Logic Feature) --- */
+      .info-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        background: #e0e7ff;
+        color: #4f46e5;
+        border-radius: 50%;
+        font-size: 10px;
+        font-weight: bold;
+        cursor: help;
+        margin-left: 6px;
+        position: relative;
+      }
+      .info-icon:hover::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: 125%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #1e293b;
+        color: white;
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 11px;
+        white-space: nowrap;
+        z-index: 1000;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      }
     </style>
   </head>
 
@@ -304,7 +336,12 @@
                 <label
                   for="order_files"
                   class="block text-sm font-medium text-slate-700 mb-2"
-                  >Order Files</label
+                  >Order Files
+                  <span
+                    class="info-icon"
+                    data-tooltip="Your Amazon All Orders report"
+                    >?</span
+                  ></label
                 >
                 <input
                   type="file"
@@ -323,7 +360,12 @@
                 <label
                   for="payment_files"
                   class="block text-sm font-medium text-slate-700 mb-2"
-                  >Payment Files</label
+                  >Payment Files
+                  <span
+                    class="info-icon"
+                    data-tooltip="Settlement reports from Amazon"
+                    >?</span
+                  ></label
                 >
                 <input
                   type="file"
@@ -342,7 +384,12 @@
                 <label
                   for="return_files"
                   class="block text-sm font-medium text-slate-700 mb-2"
-                  >Return Files</label
+                  >Return Files
+                  <span
+                    class="info-icon"
+                    data-tooltip="Customer returns and refunds"
+                    >?</span
+                  ></label
                 >
                 <input
                   type="file"
@@ -361,7 +408,12 @@
                 <label
                   for="cost_price_file"
                   class="block text-sm font-medium text-slate-700 mb-2"
-                  >Cost Price File</label
+                  >Cost Price File
+                  <span
+                    class="info-icon"
+                    data-tooltip="Excel file with SKU and cost per unit"
+                    >?</span
+                  ></label
                 >
                 <input
                   type="file"
@@ -441,6 +493,11 @@
                   class="text-sm font-semibold text-slate-900 uppercase tracking-wide"
                 >
                   Business Expenses
+                  <span
+                    class="info-icon"
+                    data-tooltip="Add all your monthly costs (ads, rent, salaries, etc.)"
+                    >?</span
+                  >
                 </h3>
                 <button
                   type="button"
@@ -459,7 +516,7 @@
                 id="analyzeBtn"
                 class="flex justify-center items-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 transition-colors"
               >
-                <span id="analyzeText">Analyze Data</span>
+                <span id="analyzeText"> Analyze</span>
                 <span
                   id="analyzeLoader"
                   class="loading ml-2"
@@ -472,7 +529,7 @@
                 disabled
                 class="flex justify-center items-center py-2.5 px-4 border border-slate-300 rounded-lg shadow-sm text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                <span id="downloadText">Download Full Report</span>
+                <span id="downloadText">📥 Download Full Report</span>
                 <span
                   id="downloadLoader"
                   class="loading ml-2 border-slate-400 border-t-slate-700"
@@ -494,9 +551,51 @@
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
             <div class="lg:col-span-2">
               <div
-                id="dynamicExpenseCards"
-                class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                id="metricsGrid"
+                class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4"
               >
+                <div
+                  class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm"
+                >
+                  <p class="text-xs font-bold text-emerald-600 uppercase">
+                    Total Revenue
+                  </p>
+                  <p
+                    class="text-2xl font-bold text-emerald-700 mt-1"
+                    id="totalRevenue"
+                  >
+                    -
+                  </p>
+                </div>
+
+                <div
+                  class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm"
+                >
+                  <p class="text-xs font-bold text-blue-600 uppercase">
+                    Money Received
+                  </p>
+                  <p
+                    class="text-2xl font-bold text-blue-700 mt-1"
+                    id="totalPaymentReceived"
+                  >
+                    -
+                  </p>
+                </div>
+
+                <div
+                  class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm"
+                >
+                  <p class="text-xs font-bold text-amber-600 uppercase">
+                    Money Pending
+                  </p>
+                  <p
+                    class="text-2xl font-bold text-amber-700 mt-1"
+                    id="totalPendingPayment"
+                  >
+                    -
+                  </p>
+                </div>
+
                 <div
                   class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm"
                 >
@@ -510,6 +609,7 @@
                     -
                   </p>
                 </div>
+
                 <div
                   class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm"
                 >
@@ -523,37 +623,26 @@
                     -
                   </p>
                 </div>
+
                 <div
                   class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm"
                 >
                   <p class="text-xs font-medium text-slate-500 uppercase">
-                    Unpaid
+                    Unpaid Units
                   </p>
                   <p
                     class="text-2xl font-bold text-amber-600 mt-1"
-                    id="totalUnpaidOrders"
+                    id="totalUnpaidQuantity"
                   >
                     -
                   </p>
                 </div>
+
                 <div
                   class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm"
                 >
                   <p class="text-xs font-medium text-slate-500 uppercase">
-                    Total Sales
-                  </p>
-                  <p
-                    class="text-2xl font-bold text-emerald-600 mt-1"
-                    id="totalPayment"
-                  >
-                    -
-                  </p>
-                </div>
-                <div
-                  class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm"
-                >
-                  <p class="text-xs font-medium text-slate-500 uppercase">
-                    Total Cost
+                    Product Costs
                   </p>
                   <p
                     class="text-2xl font-bold text-slate-700 mt-1"
@@ -562,8 +651,28 @@
                     -
                   </p>
                 </div>
+
+                <div
+                  class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm"
+                >
+                  <p class="text-xs font-medium text-slate-500 uppercase">
+                    Amazon Fees
+                  </p>
+                  <p
+                    class="text-2xl font-bold text-slate-700 mt-1"
+                    id="totalAmzFees"
+                  >
+                    -
+                  </p>
+                </div>
               </div>
+
+              <div
+                id="dynamicExpenseCards"
+                class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+              ></div>
             </div>
+
             <div class="lg:col-span-1 h-full">
               <div
                 id="netProfitContainer"
@@ -580,6 +689,9 @@
                   id="netProfit"
                 >
                   -
+                </p>
+                <p class="text-xs text-slate-400 font-medium mt-2">
+                  After all costs & expenses
                 </p>
               </div>
             </div>
@@ -606,7 +718,7 @@
                   d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
                 ></path>
               </svg>
-              Orders
+              Best Sellers
             </button>
             <button id="statesTab" class="tab-button">
               <svg
@@ -619,10 +731,10 @@
                   stroke-linecap="round"
                   stroke-linejoin="round"
                   stroke-width="2"
-                  d="M3 3v18h18M3 9h18M3 15h18"
+                  d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 ></path>
               </svg>
-              States
+              Top States
             </button>
             <button id="returnsTab" class="tab-button">
               <svg
@@ -651,16 +763,16 @@
                   stroke-linecap="round"
                   stroke-linejoin="round"
                   stroke-width="2"
-                  d="M12 8v4l3 3m6 0a9 9 0 11-18 0 9 9 0 0118 0z"
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                 ></path>
               </svg>
-              Unpaid
+              Unpaid Orders
             </button>
           </div>
 
           <div id="ordersContent" class="tab-content" style="display: none">
             <h3 class="text-lg font-bold text-slate-900 mb-4 flex items-center">
-              Top 10 Best-Selling SKUs
+              Your Top 10 Best-Selling Products
             </h3>
             <div class="overflow-x-auto rounded-lg border border-slate-200">
               <table class="min-w-full divide-y divide-slate-200">
@@ -674,12 +786,12 @@
                     <th
                       class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider"
                     >
-                      SKU
+                      Product (SKU)
                     </th>
                     <th
                       class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider"
                     >
-                      Total Quantity
+                      Units Sold
                     </th>
                   </tr>
                 </thead>
@@ -693,7 +805,7 @@
 
           <div id="statesContent" class="tab-content" style="display: none">
             <h3 class="text-lg font-bold text-slate-900 mb-4">
-              Top 10 States by Order Quantity
+              Where Your Customers Are
             </h3>
             <div class="p-4 border border-slate-200 rounded-lg">
               <canvas id="stateOrdersChart" height="100"></canvas>
@@ -702,7 +814,7 @@
 
           <div id="returnsContent" class="tab-content" style="display: none">
             <h3 class="text-lg font-bold text-slate-900 mb-4">
-              Top 10 Returned SKUs
+              Most Returned Products
             </h3>
             <div class="overflow-x-auto rounded-lg border border-slate-200">
               <table class="min-w-full divide-y divide-slate-200">
@@ -716,12 +828,12 @@
                     <th
                       class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider"
                     >
-                      SKU
+                      Product (SKU)
                     </th>
                     <th
                       class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider"
                     >
-                      Qty Returned
+                      Returns
                     </th>
                     <th
                       class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider"
@@ -740,7 +852,7 @@
 
           <div id="unpaidContent" class="tab-content" style="display: none">
             <h3 class="text-lg font-bold text-slate-900 mb-4">
-              Orders Not Yet Paid
+              Orders Waiting for Payment
             </h3>
             <div class="overflow-x-auto rounded-lg border border-slate-200">
               <table class="min-w-full divide-y divide-slate-200">
@@ -754,27 +866,27 @@
                     <th
                       class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider"
                     >
-                      SKU
+                      Product
                     </th>
                     <th
                       class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider"
                     >
-                      Qty
+                      Units
                     </th>
                     <th
                       class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider"
                     >
-                      Price
+                      Value
                     </th>
                     <th
                       class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider"
                     >
-                      Date
+                      Order Date
                     </th>
                     <th
                       class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider"
                     >
-                      State
+                      Location
                     </th>
                   </tr>
                 </thead>
@@ -970,47 +1082,37 @@
     <div id="flash-container"></div>
 
     <script>
-      // Initialize Date Pickers
       flatpickr("#start_date", { dateFormat: "Y-m-d", theme: "light", maxDate: "today" });
       flatpickr("#end_date", { dateFormat: "Y-m-d", theme: "light", maxDate: "today" });
 
       document.addEventListener("DOMContentLoaded", function () {
-          // --- Variable Initialization ---
           let currentFileName = null;
           let stateOrdersChart = null;
-          const mobileMenuBtn = document.getElementById("mobileMenuBtn");
-          const mobileMenu = document.getElementById("mobileMenu");
           const analyzeBtn = document.getElementById("analyzeBtn");
           const downloadBtn = document.getElementById("downloadBtn");
-
-          // Tabs
           const tabs = ['orders', 'returns', 'states', 'unpaid'];
 
-          // --- File Upload Feedback ---
+          // File Upload Feedback
           const fileInputs = document.querySelectorAll('input[type="file"]');
           fileInputs.forEach(input => {
               input.addEventListener('change', (e) => {
                   const count = e.target.files.length;
                   const statusId = input.id + '_status';
-                  const label = input.previousElementSibling.innerText;
                   const statusEl = document.getElementById(statusId);
-
                   if (count > 0) {
                       statusEl.innerHTML = `✅ ${count} file(s) selected`;
-                      showFlash(`Selected ${count} files for ${label}`, 'info');
+                      showFlash(`Selected ${count} files`, 'info');
                   } else {
                       statusEl.innerHTML = '';
                   }
               });
           });
 
-          // --- Helper Functions ---
           function showFlash(message, category) {
               const flashDiv = document.createElement("div");
               flashDiv.className = `flash ${category}`;
               flashDiv.innerHTML = `<span>${message}</span>`;
-              const container = document.getElementById("flash-container");
-              container.appendChild(flashDiv);
+              document.getElementById("flash-container").appendChild(flashDiv);
               setTimeout(() => {
                   flashDiv.classList.add("fade-out");
                   setTimeout(() => flashDiv.remove(), 300);
@@ -1031,7 +1133,7 @@
               document.getElementById(selectedTab + 'Content').style.display = "block";
           }
 
-          // --- Dynamic Expenses Logic ---
+          // Dynamic Expenses
           const expenseContainer = document.getElementById("expenseContainer");
           const addExpenseBtn = document.getElementById("addExpenseBtn");
           let expenseCount = 0;
@@ -1039,37 +1141,25 @@
           function addExpenseRow(name = "", amount = "") {
               expenseCount++;
               const row = document.createElement("div");
-              row.className = "grid grid-cols-2 gap-4 items-center";
+              row.className = "grid grid-cols-2 gap-3 items-center";
               row.innerHTML = `
-                  <input type="text" name="expense_name_${expenseCount}" placeholder="Expense Name" value="${name}" required
+                  <input type="text" name="expense_name_${expenseCount}" placeholder="e.g. Facebook Ads" value="${name}" required
                       class="rounded-md border-slate-300 shadow-sm focus:border-brand-500 focus:ring-brand-500 text-sm p-2 border">
                   <div class="flex items-center gap-2">
-                      <input type="number" name="expense_amount_${expenseCount}" placeholder="Amount" value="${amount}" step="0.01" required
+                      <input type="number" name="expense_amount_${expenseCount}" placeholder="Amount in ₹" value="${amount}" step="0.01" required
                           class="flex-1 rounded-md border-slate-300 shadow-sm focus:border-brand-500 focus:ring-brand-500 text-sm p-2 border">
-                      <button type="button" class="remove-expense text-slate-400 hover:text-red-500 text-lg font-bold">×</button>
+                      <button type="button" class="remove-expense w-9 h-9 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 font-bold text-xl transition-colors">×</button>
                   </div>`;
               expenseContainer.appendChild(row);
               row.querySelector(".remove-expense").addEventListener("click", () => row.remove());
           }
-          addExpenseRow(); // Init default
+          addExpenseRow();
           addExpenseBtn.addEventListener("click", () => addExpenseRow());
-
-          document.getElementById("uploadForm").addEventListener("submit", () => {
-              const rows = expenseContainer.querySelectorAll("div.grid");
-              rows.forEach((row) => {
-                  const nameInput = row.querySelector(`input[name^='expense_name_']`);
-                  const amountInput = row.querySelector(`input[name^='expense_amount_']`);
-                  const expenseName = nameInput.value.trim().toLowerCase().replace(/\s+/g, "_");
-                  amountInput.name = `expense_${expenseName}`;
-                  nameInput.removeAttribute("name");
-              });
-          });
 
           downloadBtn.addEventListener("click", handleDownloadClick);
           tabs.forEach(tab => document.getElementById(tab + 'Tab').addEventListener("click", () => switchTabs(tab)));
           analyzeBtn.addEventListener("click", handleAnalyzeClick);
 
-          // --- Main Logic: Analyze Click ---
           async function handleAnalyzeClick() {
               const form = document.getElementById("uploadForm");
               const formData = new FormData(form);
@@ -1100,7 +1190,7 @@
                   if (result.success) {
                       currentFileName = result.filename;
 
-                      // 1. Chart
+                      // Chart
                       if (result.top_states && result.top_states.length > 0) {
                           const ctx = document.getElementById("stateOrdersChart").getContext("2d");
                           if (stateOrdersChart) stateOrdersChart.destroy();
@@ -1116,51 +1206,63 @@
                                       label: "Orders",
                                       data: result.top_states.map(s => s.total_orders),
                                       backgroundColor: gradient,
-                                      borderRadius: 4,
-                                      barThickness: 30
+                                      borderRadius: 6,
+                                      barThickness: 35
                                   }]
                               },
                               options: {
                                   responsive: true,
                                   maintainAspectRatio: false,
                                   plugins: { legend: { display: false } },
-                                  scales: { x: { grid: { display: false }, ticks: { color: "#64748b" } }, y: { border: { display: false }, grid: { color: "#f1f5f9" }, ticks: { color: "#64748b" } } }
+                                  scales: {
+                                      x: { grid: { display: false }, ticks: { color: "#64748b", font: { weight: '600' } } },
+                                      y: { border: { display: false }, grid: { color: "#f1f5f9" }, ticks: { color: "#64748b", font: { weight: '600' } } }
+                                  }
                               }
                           });
                       }
 
-                      // 2. Data Population
-                      document.getElementById("totalQuantity").textContent = formatNumber(result.summary.total_quantity);
-                      document.getElementById("totalReturned").textContent = formatNumber(result.summary.total_return_quantity);
-                      document.getElementById("totalUnpaidOrders").textContent = formatNumber(result.summary.total_unpaid_orders);
-                      document.getElementById("totalPayment").textContent = formatCurrency(result.summary.total_payment);
-                      document.getElementById("totalCost").textContent = formatCurrency(result.summary.total_cost);
+                      // Populate Data - UPDATED METRICS to match New Functionality
+                      document.getElementById("totalRevenue").textContent = formatCurrency(result.summary.total_revenue || 0);
+                      document.getElementById("totalPaymentReceived").textContent = formatCurrency(result.summary.total_payment_received || 0);
+                      document.getElementById("totalPendingPayment").textContent = formatCurrency(result.summary.total_pending_payment || 0);
+                      document.getElementById("totalQuantity").textContent = formatNumber(result.summary.total_quantity || 0);
+                      document.getElementById("totalReturned").textContent = formatNumber(result.summary.total_return_quantity || 0);
+                      document.getElementById("totalUnpaidQuantity").textContent = formatNumber(result.summary.total_unpaid_quantity || 0);
+                      document.getElementById("totalCost").textContent = formatCurrency(result.summary.total_cost || 0);
+                      document.getElementById("totalAmzFees").textContent = formatCurrency(result.summary.total_amz_fees || 0);
 
-                      const netProfit = result.summary.net_profit;
+                      const netProfit = result.summary.net_profit || 0;
                       const profitText = document.getElementById("netProfit");
                       const profitContainer = document.getElementById("netProfitContainer");
                       profitText.textContent = formatCurrency(netProfit);
-                      profitContainer.className = netProfit < 0 ? "bg-red-50 p-6 rounded-xl border border-red-200 h-full flex flex-col justify-center items-center text-center" : "bg-emerald-50 p-6 rounded-xl border border-emerald-200 h-full flex flex-col justify-center items-center text-center";
-                      profitText.className = netProfit < 0 ? "text-4xl font-extrabold text-red-600" : "text-4xl font-extrabold text-emerald-600";
 
-                      // Dynamic Cards
+                      if (netProfit < 0) {
+                          profitContainer.className = "bg-red-50 p-6 rounded-xl border border-red-200 h-full flex flex-col justify-center items-center text-center";
+                          profitText.className = "text-4xl font-extrabold text-red-600";
+                      } else {
+                          profitContainer.className = "bg-emerald-50 p-6 rounded-xl border border-emerald-200 h-full flex flex-col justify-center items-center text-center";
+                          profitText.className = "text-4xl font-extrabold text-emerald-600";
+                      }
+
+                      // Dynamic Expense Cards
                       const cardsContainer = document.getElementById("dynamicExpenseCards");
                       document.querySelectorAll(".dynamic-expense-card").forEach(c => c.remove());
-                      const themeColors = ["bg-white border-slate-200 text-slate-900", "bg-brand-50 border-brand-200 text-brand-900"];
-                      let cIndex = 0;
+
                       Object.keys(result.summary).forEach(key => {
                           if (key.startsWith("expense_")) {
                               const label = key.replace("expense_", "").replace(/_/g, " ");
-                              const colorClass = themeColors[cIndex % themeColors.length];
-                              cIndex++;
                               const card = document.createElement("div");
-                              card.className = `p-4 rounded-lg border shadow-sm dynamic-expense-card ${colorClass}`;
-                              card.innerHTML = `<p class="text-xs font-medium text-slate-500 uppercase">${label}</p><p class="text-2xl font-bold mt-1">${formatCurrency(result.summary[key])}</p>`;
+                              card.className = "dynamic-expense-card bg-white p-4 rounded-lg border border-slate-200 shadow-sm";
+                              card.innerHTML = `
+                                  <p class="text-xs font-medium text-slate-500 uppercase">${label}</p>
+                                  <p class="text-2xl font-bold text-slate-900 mt-1">${formatCurrency(result.summary[key])}</p>
+                              `;
                               cardsContainer.appendChild(card);
                           }
                       });
 
-                      // 3. Tables
+                      // Tables
                       populateTable("top10TableBody", result.top_10_skus, [], 'orders');
                       populateTable("top10ReturnsTableBody", result.top_10_returns, [], 'returns');
                       populateTable("unpaidTableBody", result.unpaid_orders, [], 'unpaid');
@@ -1170,12 +1272,10 @@
                       document.getElementById("tabSection").style.display = "block";
                       switchTabs("orders");
                       downloadBtn.disabled = false;
-                      showFlash("Analysis complete!", "success");
+                      showFlash("✅ Analysis complete!", "success");
                       document.getElementById("summarySection").scrollIntoView({ behavior: "smooth" });
 
-                      // --- SHOW PROFESSIONAL NOTIFICATION ---
-                      const notif = document.getElementById('strategistNotification');
-                      notif.classList.remove('hidden');
+                      document.getElementById('strategistNotification').classList.remove('hidden');
 
                   } else {
                       showFlash("Error: " + result.error, "error");
@@ -1183,7 +1283,7 @@
               } catch (error) {
                   showFlash("Error: " + error.message, "error");
               } finally {
-                  document.getElementById("analyzeText").textContent = "Analyze Data";
+                  document.getElementById("analyzeText").textContent = "🚀 Analyze My Business";
                   document.getElementById("analyzeLoader").style.display = "none";
                   analyzeBtn.disabled = false;
               }
@@ -1197,13 +1297,30 @@
                   const tr = document.createElement("tr");
                   tr.className = "hover:bg-slate-50 transition-colors";
                   if (type === 'orders') {
-                       tr.innerHTML = `<td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">${item.Rank}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${item.sku}</td><td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-brand-600">${formatNumber(item.quantity)}</td>`;
+                       tr.innerHTML = `
+                           <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-brand-600">${item.Rank}</td>
+                           <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700 font-medium">${item.sku}</td>
+                           <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">${formatNumber(item.quantity)}</td>
+                       `;
                   } else if (type === 'returns') {
                       let category = item.return_category || item.category || 'N/A';
                       if(String(category).toLowerCase() === 'nan' || !category) category = 'General Return';
-                      tr.innerHTML = `<td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">${item.Rank}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${item.sku}</td><td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-600">${formatNumber(item.quantity)}</td><td class="px-6 py-4 whitespace-nowrap text-xs"><span class="px-2 py-1 bg-red-100 text-red-700 rounded-full">${category}</span></td>`;
+                      tr.innerHTML = `
+                          <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-600">${item.Rank}</td>
+                          <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700 font-medium">${item.sku}</td>
+                          <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-900">${formatNumber(item.quantity)}</td>
+                          <td class="px-6 py-4 whitespace-nowrap text-xs"><span class="px-3 py-1 bg-red-100 text-red-700 rounded-full font-semibold">${category}</span></td>
+                      `;
                   } else if (type === 'unpaid') {
-                      tr.innerHTML = `<td class="px-6 py-4 text-sm text-slate-900">${item['Order ID']}</td><td class="px-6 py-4 text-sm text-slate-500">${item.SKU}</td><td class="px-6 py-4 text-sm text-slate-500">${item.Quantity}</td><td class="px-6 py-4 text-sm text-slate-500">₹${item['Item Price']}</td><td class="px-6 py-4 text-sm text-slate-500">${item['Order Date'] || '-'}</td><td class="px-6 py-4 text-sm text-slate-500">${item['Ship State'] || '-'}</td>`;
+                      const pendingRevenue = item['Pending Revenue'] || (item['Quantity'] * item['Item Price']);
+                      tr.innerHTML = `
+                          <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700 font-medium">${item['Order ID']}</td>
+                          <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">${item.SKU}</td>
+                          <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">${item.Quantity}</td>
+                          <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-amber-700">${formatCurrency(pendingRevenue)}</td>
+                          <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${item['Order Date'] || '-'}</td>
+                          <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${item['Ship State'] || '-'}</td>
+                      `;
                   }
                   tbody.appendChild(tr);
               });
@@ -1223,16 +1340,17 @@
                       a.href = url; a.download = currentFileName;
                       document.body.appendChild(a); a.click();
                       window.URL.revokeObjectURL(url); document.body.removeChild(a);
+                      showFlash("✅ Report downloaded!", "success");
                   }
               } catch(e) { showFlash("Download failed", "error"); }
               finally {
-                 document.getElementById("downloadText").textContent = "Download Full Report";
+                 document.getElementById("downloadText").textContent = "📥 Download Full Report";
                  document.getElementById("downloadLoader").style.display = "none";
                  downloadBtn.disabled = false;
               }
           }
 
-          // --- Session Restore ---
+          // Session Restore
           const isReload = performance.getEntriesByType("navigation")[0]?.type === "reload";
           const savedDataExists = {{ 'true' if data_exists else 'false' }};
 
@@ -1255,6 +1373,7 @@
                       top_10_returns: {{ top_10_returns | tojson | safe }},
                       unpaid_orders: {{ unpaid_orders | tojson | safe }}
                   };
+
                   if (mockResult.top_states) {
                       const ctx = document.getElementById("stateOrdersChart").getContext("2d");
                       const gradient = ctx.createLinearGradient(0, 0, 0, 400);
@@ -1264,29 +1383,33 @@
                           type: "bar",
                           data: {
                               labels: mockResult.top_states.map(s => s.state),
-                              datasets: [{ label: "Orders", data: mockResult.top_states.map(s => s.total_orders), backgroundColor: gradient, borderRadius: 4, barThickness: 30 }]
+                              datasets: [{ label: "Orders", data: mockResult.top_states.map(s => s.total_orders), backgroundColor: gradient, borderRadius: 6, barThickness: 35 }]
                           },
                           options: { responsive: true, maintainAspectRatio: false, plugins: { legend: {display:false} }, scales: { x: {grid:{display:false}}, y: {border:{display:false}} } }
                       });
                   }
-                  document.getElementById("totalQuantity").textContent = formatNumber(mockResult.summary.total_quantity);
-                  document.getElementById("totalReturned").textContent = formatNumber(mockResult.summary.total_return_quantity);
-                  document.getElementById("totalUnpaidOrders").textContent = formatNumber(mockResult.summary.total_unpaid_orders);
-                  document.getElementById("totalPayment").textContent = formatCurrency(mockResult.summary.total_payment);
-                  document.getElementById("totalCost").textContent = formatCurrency(mockResult.summary.total_cost);
-                  document.getElementById("netProfit").textContent = formatCurrency(mockResult.summary.net_profit);
+
+                  document.getElementById("totalRevenue").textContent = formatCurrency(mockResult.summary.total_revenue || 0);
+                  document.getElementById("totalPaymentReceived").textContent = formatCurrency(mockResult.summary.total_payment_received || 0);
+                  document.getElementById("totalPendingPayment").textContent = formatCurrency(mockResult.summary.total_pending_payment || 0);
+                  document.getElementById("totalQuantity").textContent = formatNumber(mockResult.summary.total_quantity || 0);
+                  document.getElementById("totalReturned").textContent = formatNumber(mockResult.summary.total_return_quantity || 0);
+                  document.getElementById("totalUnpaidQuantity").textContent = formatNumber(mockResult.summary.total_unpaid_quantity || 0);
+                  document.getElementById("totalCost").textContent = formatCurrency(mockResult.summary.total_cost || 0);
+                  document.getElementById("totalAmzFees").textContent = formatCurrency(mockResult.summary.total_amz_fees || 0);
+                  document.getElementById("netProfit").textContent = formatCurrency(mockResult.summary.net_profit || 0);
+
                   populateTable("top10TableBody", mockResult.top_10_skus, [], 'orders');
                   populateTable("top10ReturnsTableBody", mockResult.top_10_returns, [], 'returns');
                   populateTable("unpaidTableBody", mockResult.unpaid_orders, [], 'unpaid');
+
                   document.getElementById("summarySection").style.display = "block";
                   document.getElementById("tabSection").style.display = "block";
                   switchTabs("orders");
                   downloadBtn.disabled = false;
                   currentFileName = "{{ session.get('output_filename', '') }}";
 
-                  // Show Blip on Restore too
-                  const notif = document.getElementById('strategistNotification');
-                  notif.classList.remove('hidden');
+                  document.getElementById('strategistNotification').classList.remove('hidden');
 
               } catch(e) { console.error("Restore failed", e); }
           }

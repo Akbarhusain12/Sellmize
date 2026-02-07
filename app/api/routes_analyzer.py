@@ -148,47 +148,96 @@ def analyze():
                 logger.error(f"❌ Failed to load Merged Data: {e}")
                 merged_df = pd.DataFrame()
 
-            if 'real_revenue' not in merged_df.columns:
-                return jsonify({"success": False, "error": "real_revenue missing in output."}), 500
+            # ===== UPDATED: Check for 'revenue' column instead of 'real_revenue' =====
+            if 'revenue' not in merged_df.columns:
+                logger.warning("⚠️ 'revenue' column not found in Merged Data")
 
             # Sanitize Data Frames (where.pd.notnull converts NaN to None/null)
             top_10_df = pd.read_excel(output_path, sheet_name='Top 10 SKUs')
             top_10_list = top_10_df.where(pd.notnull(top_10_df), None).to_dict('records')
 
+            # ===== UPDATED: New metric mapping for revenue-based calculations =====
             for _, row in summary_df.iterrows():
                 metric = str(row['Metric']).strip()
                 val = row['Value']
                 try: 
                     val = float(val) 
-                    if pd.isna(val): val = 0.0
-                except: val = 0.0
+                    if pd.isna(val): 
+                        val = 0.0
+                except: 
+                    val = 0.0
                 
-                key_map = {'Total Quantity': 'total_quantity', 'Total Payment': 'total_payment', 
-                           'Total Cost': 'total_cost', 'Net Profit': 'net_profit',
-                           'Total Return Quantity': 'total_return_quantity', 
-                           'Total Unpaid Orders': 'total_unpaid_orders',
-                           'Total Amz Fees': 'total_amz_fees'}
+                # Updated key mapping for new metrics
+                key_map = {
+                    'Total Quantity Ordered': 'total_quantity',
+                    'Total Revenue (All Orders)': 'total_revenue',
+                    'Total Payment Received': 'total_payment_received',
+                    'Total Pending Payment': 'total_pending_payment',
+                    'Total Unpaid Order Quantity': 'total_unpaid_quantity',
+                    'Total Cost': 'total_cost',
+                    'Total Amz Fees': 'total_amz_fees',
+                    'Total Return Quantity': 'total_return_quantity',
+                    'Total Expenses': 'total_expenses',
+                    'Net Profit': 'net_profit',
+                    
+                    # Legacy support (old metric names)
+                    'Total Quantity': 'total_quantity',
+                    'Total Payment': 'total_payment_received',
+                    'Total Unpaid Orders': 'total_unpaid_quantity',
+                }
                 
-                if metric in key_map: summary_dict[key_map[metric]] = val
-                elif metric.lower() not in ['total quantity', 'total payment', 'total cost', 'net profit']:
-                    summary_dict["expense_" + metric.lower().replace(" ", "_")] = val
+                if metric in key_map: 
+                    summary_dict[key_map[metric]] = val
+                else:
+                    # Store as dynamic expense
+                    clean_key = metric.lower().replace(" ", "_").replace("-", "_")
+                    if clean_key not in ['total_quantity', 'total_payment', 'total_cost', 
+                                         'net_profit', 'total_return_quantity', 
+                                         'total_unpaid_orders', 'total_amz_fees']:
+                        summary_dict[f"expense_{clean_key}"] = val
 
             # Load secondary sheets safely
             try:
                 r_df = pd.read_excel(output_path, sheet_name='Top 10 Returns')
                 top_10_returns_list = r_df.where(pd.notnull(r_df), None).to_dict('records')
-            except: top_10_returns_list = []
+            except Exception as e:
+                logger.warning(f"Could not load Top 10 Returns: {e}")
+                top_10_returns_list = []
             
             try:
                 s_df = pd.read_excel(output_path, sheet_name='Top 10 States')
-                s_df = s_df.rename(columns={'ship_state': 'state', 'quantity': 'total_orders'})
+                # Handle both old and new column names
+                if 'ship_state' in s_df.columns:
+                    s_df = s_df.rename(columns={'ship_state': 'state', 'quantity': 'total_orders'})
                 top_states_list = s_df.where(pd.notnull(s_df), None).to_dict('records')
-            except: top_states_list = []
+            except Exception as e:
+                logger.warning(f"Could not load Top 10 States: {e}")
+                top_states_list = []
 
             try:
                 u_df = pd.read_excel(output_path, sheet_name='Unpaid Orders')
                 unpaid_orders_list = u_df.where(pd.notnull(u_df), None).to_dict('records')
-            except: unpaid_orders_list = []
+            except Exception as e:
+                logger.warning(f"Could not load Unpaid Orders: {e}")
+                unpaid_orders_list = []
+
+            # ===== UPDATED: Add default values for new metrics =====
+            default_summary_keys = {
+                'total_quantity': 0.0,
+                'total_revenue': 0.0,
+                'total_payment_received': 0.0,
+                'total_pending_payment': 0.0,
+                'total_unpaid_quantity': 0.0,
+                'total_cost': 0.0,
+                'total_amz_fees': 0.0,
+                'total_return_quantity': 0.0,
+                'total_expenses': 0.0,
+                'net_profit': 0.0,
+            }
+            
+            for key, default_val in default_summary_keys.items():
+                if key not in summary_dict:
+                    summary_dict[key] = default_val
 
             # Session Management
             session['dynamic_expenses'] = dynamic_expenses 
@@ -199,9 +248,14 @@ def analyze():
             merged_data_list = merged_df.to_dict('records') if not merged_df.empty else []
             save_full_analysis(
                 user_id=current_user.id,
-                file_name=output_filename, start_date=start_date, end_date=end_date,
-                summary=summary_dict, top_skus=top_10_list, top_returns=top_10_returns_list,
-                top_states=top_states_list, merged_data=merged_data_list 
+                file_name=output_filename, 
+                start_date=start_date, 
+                end_date=end_date,
+                summary=summary_dict, 
+                top_skus=top_10_list, 
+                top_returns=top_10_returns_list,
+                top_states=top_states_list, 
+                merged_data=merged_data_list 
             )
 
             # FINAL STEP: Wrap in clean_for_json to prevent Heroku 'Invalid JSON' crash
@@ -215,6 +269,8 @@ def analyze():
                 'unpaid_orders': unpaid_orders_list
             }
 
+            logger.warning(f"✅ Analysis complete. Sending response with {len(unpaid_orders_list)} unpaid orders.")
+            
             return jsonify(clean_for_json(response_payload))
 
         except Exception as e:

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -44,11 +44,14 @@
       }
 
       .hover-lift {
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        transition:
+          transform 0.2s ease,
+          box-shadow 0.2s ease;
       }
       .hover-lift:hover {
         transform: translateY(-2px);
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05),
+        box-shadow:
+          0 10px 15px -3px rgba(0, 0, 0, 0.05),
           0 4px 6px -2px rgba(0, 0, 0, 0.025);
       }
 
@@ -148,34 +151,6 @@
           </a>
           {% endif %}
         </div>
-
-        <!-- <div class="flex items-center gap-4">
-          <button
-            class="relative p-2 text-slate-400 hover:text-slate-600 transition-colors"
-          >
-            <svg
-              class="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-              ></path>
-            </svg>
-            <span
-              class="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"
-            ></span>
-          </button>
-          <div
-            class="w-9 h-9 bg-brand-100 text-brand-700 rounded-full flex items-center justify-center font-semibold text-sm border border-brand-200"
-          >
-            U
-          </div>
-        </div> -->
       </nav>
     </header>
 
@@ -363,41 +338,52 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <!-- UPDATED SECTION: Better Layout for Charts -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Top Selling Products - Left Column -->
         <div
-          class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col"
+          class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 hover-lift"
         >
-          <h3 class="text-lg font-bold text-slate-900 mb-2">
-            Top Selling Products
-          </h3>
-          <p class="text-sm text-slate-500 mb-6">
-            Distribution by sales volume
-          </p>
-          <div class="flex-grow flex items-center justify-center">
-            <div class="w-full max-w-[320px] h-[300px]">
+          <div class="mb-6">
+            <h3 class="text-lg font-bold text-slate-900">
+              Top Selling Products
+            </h3>
+            <p class="text-sm text-slate-500 mt-1">Best performers by volume</p>
+          </div>
+          <div class="flex items-center justify-center">
+            <div class="w-full h-[280px]">
               <canvas id="skuChart"></canvas>
             </div>
           </div>
         </div>
 
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-          <h3 class="text-lg font-bold text-slate-900 mb-2">Top States</h3>
-          <p class="text-sm text-slate-500 mb-6">Highest performing regions</p>
-          <div class="h-[300px]">
+        <!-- Top States - Middle Column -->
+        <div
+          class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 hover-lift"
+        >
+          <div class="mb-6">
+            <h3 class="text-lg font-bold text-slate-900">Top States</h3>
+            <p class="text-sm text-slate-500 mt-1">
+              Highest performing regions
+            </p>
+          </div>
+          <div class="h-[280px]">
             <canvas id="stateChart"></canvas>
           </div>
         </div>
-      </div>
 
-      <div
-        class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-8"
-      >
-        <h3 class="text-lg font-bold text-slate-900 mb-6">
-          Cost Breakdown Analysis
-        </h3>
-        <div class="h-64 w-full flex justify-center">
-          <div class="w-full max-w-lg">
-            <canvas id="costChart"></canvas>
+        <!-- Cost Breakdown - Right Column -->
+        <div
+          class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 hover-lift"
+        >
+          <div class="mb-6">
+            <h3 class="text-lg font-bold text-slate-900">Cost Breakdown</h3>
+            <p class="text-sm text-slate-500 mt-1">Expense distribution</p>
+          </div>
+          <div class="flex items-center justify-center">
+            <div class="w-full h-[280px]">
+              <canvas id="costChart"></canvas>
+            </div>
           </div>
         </div>
       </div>
@@ -651,54 +637,46 @@
         }
       });
 
-      // 2. Cost Breakdown Chart (THEMED COLORS APPLIED HERE)
-      const costCtx = document.getElementById('costChart').getContext('2d');
-      new Chart(costCtx, {
-        type: 'doughnut',
-        data: {
-          labels: {{ chart_cost_labels | tojson }},
-          datasets: [{
-            data: {{ chart_cost_data | tojson }},
-            // NEW THEMED PALETTE: Indigo, Cyan, Violet
-            backgroundColor: ['#4f46e5', '#06b6d4', '#8b5cf6'],
-            borderWidth: 2,
-            borderColor: '#ffffff',
-            hoverOffset: 4
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          cutout: '75%',
-          plugins: {
-            legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 8 } }
-          }
-        }
-      });
-
-      // 3. Top SKUs Chart
+      // 2. Top SKUs Chart - Pie Chart
       const skuCtx = document.getElementById('skuChart').getContext('2d');
       new Chart(skuCtx, {
-        type: 'pie',
+        type: 'doughnut',
         data: {
           labels: {{ chart_sku_labels | tojson }},
           datasets: [{
             data: {{ chart_sku_data | tojson }},
             backgroundColor: ['#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe', '#e0e7ff'],
-            borderWidth: 2,
-            borderColor: '#ffffff'
+            borderWidth: 3,
+            borderColor: '#ffffff',
+            hoverOffset: 8
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          cutout: '65%',
           plugins: {
-            legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }
+            legend: {
+              position: 'bottom',
+              labels: {
+                usePointStyle: true,
+                boxWidth: 8,
+                padding: 15,
+                font: { size: 11 }
+              }
+            },
+            tooltip: {
+              backgroundColor: '#1e293b',
+              padding: 10,
+              cornerRadius: 6,
+              titleFont: { size: 12 },
+              bodyFont: { size: 11 }
+            }
           }
         }
       });
 
-      // 4. Top States Chart
+      // 3. Top States Chart - Horizontal Bar
       const stateCtx = document.getElementById('stateChart').getContext('2d');
       new Chart(stateCtx, {
         type: 'bar',
@@ -708,17 +686,73 @@
             label: 'Orders',
             data: {{ chart_state_data | tojson }},
             backgroundColor: '#6366f1',
-            borderRadius: 4,
-            barThickness: 24
+            borderRadius: 6,
+            barThickness: 28
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
+          indexAxis: 'y',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#1e293b',
+              padding: 10,
+              cornerRadius: 6,
+              titleFont: { size: 12 },
+              bodyFont: { size: 11 }
+            }
+          },
           scales: {
-            x: { grid: { display: false } },
-            y: { grid: gridOptions, border: { display: false } }
+            x: {
+              grid: gridOptions,
+              border: { display: false },
+              ticks: { font: { size: 11 } }
+            },
+            y: {
+              grid: { display: false },
+              ticks: { font: { size: 11 } }
+            }
+          }
+        }
+      });
+
+      // 4. Cost Breakdown Chart - Doughnut
+      const costCtx = document.getElementById('costChart').getContext('2d');
+      new Chart(costCtx, {
+        type: 'doughnut',
+        data: {
+          labels: {{ chart_cost_labels | tojson }},
+          datasets: [{
+            data: {{ chart_cost_data | tojson }},
+            backgroundColor: ['#4f46e5', '#818cf8', '#a5b4fc'],
+            borderWidth: 3,
+            borderColor: '#ffffff',
+            hoverOffset: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '70%',
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                usePointStyle: true,
+                boxWidth: 8,
+                padding: 15,
+                font: { size: 11 }
+              }
+            },
+            tooltip: {
+              backgroundColor: '#1e293b',
+              padding: 10,
+              cornerRadius: 6,
+              titleFont: { size: 12 },
+              bodyFont: { size: 11 }
+            }
           }
         }
       });

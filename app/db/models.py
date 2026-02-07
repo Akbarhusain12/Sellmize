@@ -52,27 +52,28 @@ class Transaction(db.Model):
         db.PrimaryKeyConstraint('amazon_order_id', 'sku', 'analysis_id'),
     )
 
-    # Composite primary key fields
+    # --- Primary Keys ---
     amazon_order_id = db.Column(db.String, nullable=False)
     sku = db.Column(db.String, nullable=False)
+    analysis_id = db.Column(UUID(as_uuid=True), db.ForeignKey("analyses.id"), nullable=False)
     
-    # Foreign key (also part of composite PK to ensure referential integrity)
-    analysis_id = db.Column(
-        UUID(as_uuid=True),
-        db.ForeignKey("analyses.id"),
-        nullable=False
-    )
-    
-    # Other fields
+    # --- The 14 Report Columns ---
     order_date = db.Column(db.Date)
     quantity = db.Column(db.Integer)
-    total_amount = db.Column(db.Float)
-    real_revenue = db.Column(db.Float)
+    
+    # Financials
+    item_price = db.Column(db.Float)       # New: Stores 'item_price'
+    revenue = db.Column(db.Float)          # Renamed from 'total_amount' to match report 'revenue'
+    payment_amount = db.Column(db.Float)   # New: Stores 'Payment Amount'
     product_cost = db.Column(db.Float)
     total_cost = db.Column(db.Float)
+    amz_fees = db.Column(db.Float)
+    
+    # Status & Logistics
     status = db.Column(db.String)
     ship_state = db.Column(db.String)
-    amz_fees = db.Column(db.Float)
+    is_paid = db.Column(db.String)         # New: Stores 'Is Paid' (True/False or Yes/No)
+    return_reason = db.Column(db.String)   
 
 
 class SummaryMetric(db.Model):

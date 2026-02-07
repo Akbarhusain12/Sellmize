@@ -106,7 +106,7 @@ def index():
         ).all():
             metrics_sum[m.metric] = metrics_sum.get(m.metric, 0) + m.value
 
-        revenue = metrics_sum.get('total_payment', 0)
+        revenue = metrics_sum.get('total_revenue', 0)
         net_profit = metrics_sum.get('net_profit', 0)
         total_qty = metrics_sum.get('total_quantity', 0)
         return_qty = metrics_sum.get('total_return_quantity', 0)
@@ -170,17 +170,38 @@ def index():
         if transactions:
             data_list = []
             for t in transactions:
-                if t.order_date: # Skip if date is None
-                    data_list.append({
-                        'date': t.order_date,
-                        'revenue': t.total_amount or 0,
-                        'cost': (t.total_cost or 0) + (t.amz_fees or 0)
-                    })
+                if t.order_date: 
+                    try:
+                        # --- FIX STARTS HERE ---
+                        # Use 't.revenue' because you updated models.py to use that name
+                        rev = float(t.revenue) if t.revenue is not None else 0.0
+                        
+                        # Fallback: If revenue is 0, check if 'item_price' has data
+                        if rev == 0 and getattr(t, 'item_price', None):
+                             rev = float(t.item_price)
+
+                        # Calculate costs safely
+                        # Note: Make sure these match your model names exactly
+                        c_price = float(t.product_cost) if t.product_cost is not None else 0.0
+                        fees = float(t.amz_fees) if t.amz_fees is not None else 0.0
+                        cost = c_price + fees
+                        
+                        data_list.append({
+                            'date': t.order_date,
+                            'revenue': rev,
+                            'cost': cost
+                        })
+                        # --- FIX ENDS HERE ---
+                    except (ValueError, TypeError):
+                        continue
             
             if data_list:
                 df = pd.DataFrame(data_list)
-                # Group by date
-                daily = df.groupby('date').sum().reset_index()
+                
+                # Group by date and sum
+                daily = df.groupby('date')[['revenue', 'cost']].sum().reset_index()
+                
+                # Calculate profit
                 daily['profit'] = daily['revenue'] - daily['cost']
 
                 context['chart_trend_labels'] = daily['date'].astype(str).tolist()

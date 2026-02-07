@@ -120,8 +120,8 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
                  dynamic_expenses, output_folder,
                  start_date=None, end_date=None):
     """
-    Main data processing pipeline.
-    Orchestrates loading, cleaning, merging, analysis, and exporting.
+    Main data processing pipeline - REVENUE-BASED CALCULATION.
+    Calculates based on ALL orders, tracks payments separately.
     """
 
     # --- 1. Load Data (with TXT-to-Excel conversion) ---
@@ -168,7 +168,7 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     # --- 2. Find Columns and Filter by Date ---
     logger.warning("--- 2. Finding Columns & Filtering Dates ---")
     
-    # Find all required columns from the orders file at the start
+    # Find all required columns from the orders file
     order_id_col = find_column(orders, ['amazon-order-id', 'order-id', 'order id', 'orderid', 'amazon order id'])
     sku_col = find_column(orders, ['sku', 'SKU', 'product-sku'])
     quantity_col = find_column(orders, ['quantity', 'qty', 'quantity-purchased', 'quantity purchased'])
@@ -207,18 +207,18 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     col_rename_map = {}
     final_col_list = []
     for clean_name, original_name in extract_cols.items():
-        if original_name: # Only add if the column was found
+        if original_name:
             col_rename_map[original_name] = clean_name
             final_col_list.append(original_name)
 
-    # Filter orders and rename columns in one step
+    # Filter orders and rename columns
     filtered_orders = orders[
         (orders[quantity_col] > 0) & (orders[item_price_col].notna())
     ][final_col_list].copy()
     
     filtered_orders.rename(columns=col_rename_map, inplace=True)
     
-    # Ensure all expected columns exist, even if blank (for consistency)
+    # Ensure all expected columns exist
     for col in ['amazon-order-id', 'sku', 'quantity', 'item_price', 'order_date', 'ship_state']:
         if col not in filtered_orders.columns:
             filtered_orders[col] = None
@@ -226,15 +226,12 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     # --- Date Filtering (Orders) ---
     if 'order_date' in filtered_orders.columns and filtered_orders['order_date'].notna().any():
         try:
-            # FORCE timezone removal to prevent Excel export crash
             temp_date = pd.to_datetime(filtered_orders['order_date'], errors='coerce')
             if temp_date.dt.tz is not None:
                 temp_date = temp_date.dt.tz_localize(None)
             
-            # Save as date objects for filtering
             filtered_orders['order_date'] = temp_date.dt.date
 
-            # Apply filters if provided
             if start_date:
                 start_dt = pd.to_datetime(start_date).date()
                 filtered_orders = filtered_orders[filtered_orders['order_date'] >= start_dt]
@@ -269,17 +266,15 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         except Exception as e:
             logger.warning(f"⚠️ Could not filter Return file by date ({return_date_col}): {e}")
     else:
-        logger.warning("⚠️ No valid 'Return request date' column found or all values are missing in Return file.")
+        logger.warning("⚠️ No valid 'Return request date' column found in Return file.")
 
     # ================== ANALYTICS SNAPSHOT ==================
-
     orders_snapshot = filtered_orders.copy()
     orders_snapshot['order_date'] = pd.to_datetime(
         orders_snapshot['order_date'], errors='coerce'
     )
 
     orders_snapshot = orders_snapshot.dropna(subset=['order_date'])
-
     orders_snapshot['weekday'] = orders_snapshot['order_date'].dt.dayofweek
 
     orders_by_weekday = (
@@ -288,17 +283,14 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         .sort_index()
         .reset_index()
     )
-
     orders_by_weekday.columns = ['weekday', 'order_count']
 
     weekday_map = {
         0: 'Monday', 1: 'Tuesday', 2: 'Wednesday',
         3: 'Thursday', 4: 'Friday', 5: 'Saturday', 6: 'Sunday'
     }
-
     orders_by_weekday['weekday'] = orders_by_weekday['weekday'].map(weekday_map)
 
-    
     daily_orders = (
         orders_snapshot
         .set_index('order_date')
@@ -306,13 +298,15 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         .size()
         .reset_index(name='order_count')
     )
+    
     orders_snapshot['item_price'] = pd.to_numeric(
         orders_snapshot['item_price'], errors='coerce'
     ).fillna(0)
 
-    orders_snapshot['revenue'] = (
-        orders_snapshot['quantity'] * orders_snapshot['item_price']
-    )
+    # -------------------------------------------------------------
+    # MODIFIED: Revenue calculation (Item Price ONLY, no quantity)
+    # -------------------------------------------------------------
+    orders_snapshot['revenue'] = orders_snapshot['item_price']
 
     daily_revenue = (
         orders_snapshot
@@ -336,9 +330,6 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     else:
         return_reasons = pd.DataFrame(columns=['reason', 'count'])
 
-
-
-
     # --- 3. Pre-Merge Analysis (Top 10s) ---
     logger.warning("--- 3. Running Pre-Merge Analysis ---")
     
@@ -359,21 +350,10 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     else:
         logger.warning(f"Warning: Could not find return columns. Found: {Return.columns.tolist()}")
         top_10_returns = pd.DataFrame(columns=['Rank', 'sku', 'quantity', 'category'])
-        
-    # --- 4. Clean & Merge Core Data ---
-    logger.warning("--- 4. Cleaning & Merging Data ---")
 
-    # --- Return file columns ---
-    return_order_id_col = find_column(Return, ['Order ID', 'order id', 'orderid', 'order-id'])
-    return_type_col = find_column(Return, ['Return type', 'return type', 'returntype', 'return_type', 'Status'])
+    # --- 4. Process Payments ---
+    logger.warning("--- 4. Processing Payments ---")
 
-    if not all([return_order_id_col, return_type_col]):
-        raise Exception(f"❌ Missing required columns in return files. Found columns: {Return.columns.tolist()}")
-
-    filtered_return = Return[[return_order_id_col, return_type_col]].copy()
-    filtered_return.columns = ['Order ID', 'Return type']
-
-    # --- Payment file columns ---
     payment_order_id_col = find_column(payment, ['order id', 'orderid', 'order-id', 'order_id'])
     payment_total_col = find_column(payment, ['total', 'amount', 'total amount', 'Total', 'net total'])
 
@@ -383,12 +363,25 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     filtered_payment = payment[[payment_order_id_col, payment_total_col]].copy()
     filtered_payment.columns = ['order id', 'total']
     filtered_payment = filtered_payment.dropna(subset=['order id'])
-
-    # --- 3. Process Payments ---
     filtered_payment['total'] = filtered_payment['total'].apply(_clean_and_sum)
     consolidated_payment = filtered_payment.groupby('order id', as_index=False)['total'].sum()
 
-    # --- 4. Merge Orders and Payments ---
+    # --- 5. Calculate Total Revenue (ALL ORDERS) ---
+    logger.warning("--- 5. Calculating Total Revenue from ALL Orders ---")
+    
+    # Clean and prepare orders data
+    filtered_orders['sku'] = filtered_orders['sku'].astype(str).str.strip().str.upper()
+    filtered_orders['item_price'] = pd.to_numeric(filtered_orders['item_price'], errors='coerce').fillna(0)
+    filtered_orders['quantity'] = pd.to_numeric(filtered_orders['quantity'], errors='coerce').fillna(0)
+    
+    # -------------------------------------------------------------
+    # MODIFIED: Revenue calculation (Item Price ONLY, no quantity)
+    # -------------------------------------------------------------
+    filtered_orders['revenue'] = filtered_orders['item_price']
+
+    # --- 6. Merge with Payments to Track Payment Status ---
+    logger.warning("--- 6. Merging Orders with Payments ---")
+    
     merged_data = pd.merge(
         filtered_orders,
         consolidated_payment,
@@ -396,57 +389,42 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         right_on='order id',
         how='left'
     )
+    
+    # Add payment status flag
+    merged_data['payment_status'] = merged_data['total'].notna()
+    merged_data['payment_received'] = merged_data['total'].fillna(0)
+    
+    # Clean up duplicate column
+    merged_data.drop(columns=['order id'], inplace=True, errors='ignore')
 
-    # --- 4a. Identify Unpaid Orders ---
-    unpaid_orders = merged_data[merged_data['total'].isna()].copy()
+    # --- 7. Identify Unpaid Orders ---
+    logger.warning("--- 7. Identifying Unpaid Orders ---")
+    
+    unpaid_orders = merged_data[~merged_data['payment_status']].copy()
     unpaid_orders = unpaid_orders[
-        ['amazon-order-id', 'sku', 'quantity', 'item_price', 'order_date', 'ship_state']
+        ['amazon-order-id', 'sku', 'quantity', 'item_price', 'revenue', 'order_date', 'ship_state']
     ].copy()
     unpaid_orders.rename(columns={
         'amazon-order-id': 'Order ID',
         'sku': 'SKU',
         'quantity': 'Quantity',
         'item_price': 'Item Price',
+        'revenue': 'Pending Revenue',
         'order_date': 'Order Date',
         'ship_state': 'Ship State'
     }, inplace=True)
     unpaid_orders = unpaid_orders.sort_values(by='Order Date', ascending=False).reset_index(drop=True)
-    logger.warning(f"⚠️ Found {len(unpaid_orders)} unpaid orders (present in Orders but missing in Payments).")
-    total_unpaid_orders = unpaid_orders['Quantity'].sum()
     
-    # --- 4b. Filter to PAID Orders Only ---
-    merged_data = merged_data[merged_data['total'].notna()]
+    total_unpaid_quantity = unpaid_orders['Quantity'].sum()
+    total_pending_revenue = unpaid_orders['Pending Revenue'].sum()
+    
+    logger.warning(f"⚠️ Found {len(unpaid_orders)} unpaid order lines:")
+    logger.warning(f"   - Total Unpaid Quantity: {total_unpaid_quantity}")
+    logger.warning(f"   - Total Pending Revenue: ₹{total_pending_revenue:,.2f}")
 
-    # --- 4c. Verify SKU consistency ---
-    merged_data['sku'] = merged_data['sku'].astype(str).str.strip().str.upper()
-    consolidated_sku_orders = filtered_orders[['amazon-order-id', 'sku']].copy()
-    consolidated_sku_orders['sku'] = consolidated_sku_orders['sku'].astype(str).str.strip().str.upper()
-
-    # --- 4d. Calculate REAL Revenue (Demand-based) ---
-    if 'item_price' in merged_data.columns:
-        # Convert to numeric first, then fill zeros, THEN multiply
-        merged_data['item_price'] = pd.to_numeric(merged_data['item_price'], errors='coerce').fillna(0)
-        merged_data['quantity'] = pd.to_numeric(merged_data['quantity'], errors='coerce').fillna(0)
-        merged_data['real_revenue'] = merged_data['quantity'] * merged_data['item_price']
-    else:
-        raise Exception("❌ item_price missing — cannot compute real_revenue")
+    # --- 8. Map Cost Price (on ALL data) ---
+    logger.warning("--- 8. Mapping Cost Price ---")
     
-    
-    # Keep only SKUs that exist in both orders and payments
-    merged_data = merged_data.merge(
-        consolidated_sku_orders[['amazon-order-id', 'sku']],
-        on=['amazon-order-id', 'sku'],
-        how='inner'
-    )
-    
-    # Keep relevant columns
-    keep_cols = ['amazon-order-id', 'sku', 'quantity', 'total', 'item_price', 'real_revenue', 'order_date', 'ship_state']
-    final_keep_cols = [col for col in keep_cols if col in merged_data.columns]
-    merged_data = merged_data[final_keep_cols]
-
-    # --- 5. Map Cost Price (on PAID data) ---
-    logger.warning("--- 5. Mapping Cost Price ---")
-    merged_data['sku'] = merged_data['sku'].astype(str).str.strip().str.upper()
     cost_sku_col = find_column(Cost_price, ['SKU', 'sku', 'product-sku', 'product sku'])
     cost_price_col = find_column(Cost_price, ['Product Cost', 'product cost', 'cost', 'price'])
 
@@ -454,76 +432,10 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         raise Exception(f"❌ Missing required columns in cost price file. Found columns: {Cost_price.columns.tolist()}")
 
     Cost_price[cost_sku_col] = Cost_price[cost_sku_col].astype(str).str.strip().str.upper()
-    paid_skus = set(merged_data['sku'].unique())
-    Cost_price_filtered = Cost_price[Cost_price[cost_sku_col].isin(paid_skus)]
-    cost_price_dict = Cost_price_filtered.set_index(cost_sku_col)[cost_price_col].to_dict()
+    cost_price_dict = Cost_price.set_index(cost_sku_col)[cost_price_col].to_dict()
 
     merged_data['Product Cost'] = merged_data['sku'].map(cost_price_dict)
     merged_data['Total Cost'] = merged_data['quantity'] * merged_data['Product Cost']
-
-    # --- 6. Post-Merge Analysis (Paid Data) ---
-    logger.warning("--- 6. Running Post-Merge Analysis ---")
-
-    # --- TOP 10 STATES by Quantity Analysis ---
-    if 'ship_state' in merged_data.columns and merged_data['ship_state'].notna().any():
-        top_10_states_data = merged_data[['ship_state', 'quantity']].copy()
-        top_10_states_data['ship_state'] = top_10_states_data['ship_state'].astype(str).str.strip().str.title()
-        top_10_states_data['quantity'] = pd.to_numeric(top_10_states_data['quantity'], errors='coerce')
-        top_10_states_data = top_10_states_data.dropna(subset=['quantity'])
-        top_10_states_grouped = top_10_states_data.groupby('ship_state', as_index=False)['quantity'].sum()
-        top_10_states = top_10_states_grouped.sort_values('quantity', ascending=False).head(10).reset_index(drop=True)
-        top_10_states.insert(0, 'Rank', range(1, len(top_10_states) + 1))
-    else:
-        logger.warning("⚠️ No 'ship_state' column found or all values are missing.")
-        top_10_states = pd.DataFrame(columns=['Rank', 'ship_state', 'quantity'])
-
-    # --- TOP 10 SKUs by Quantity Analysis (Paid Orders) ---
-    # This overwrites the initial 'all orders' SKU analysis, which is intentional
-    top_10_data = merged_data[['sku', 'quantity']].copy()
-    top_10_data['sku'] = top_10_data['sku'].astype(str).str.strip().str.upper()
-    top_10_data['quantity'] = pd.to_numeric(top_10_data['quantity'], errors='coerce')
-    top_10_data = top_10_data.dropna(subset=['quantity'])
-    top_10_grouped = top_10_data.groupby('sku', as_index=False)['quantity'].sum()
-    top_10_skus = top_10_grouped.sort_values('quantity', ascending=False).head(10).reset_index(drop=True)
-    top_10_skus.insert(0, 'Rank', range(1, len(top_10_skus) + 1))
-
-    # --- 7. Final Merge & Fee Calculation ---
-    logger.warning("--- 7. Merging Returns & Fees ---")
-    
-    raw_reason_col = find_column(Return, ['Return reason', 'reason', 'return-reason', 'detailed-reason'])
-    
-    # Merge Return Status
-    filtered_return['Order ID'] = filtered_return['Order ID'].astype(str)
-    if raw_reason_col:
-        # We take Order ID and the actual Reason text
-        return_lookup = Return[[return_order_id_col, raw_reason_col]].copy()
-        return_lookup.columns = ['Order ID', 'raw_return_reason']
-        # Drop duplicates to avoid multiplying rows during merge
-        return_lookup = return_lookup.drop_duplicates(subset=['Order ID'], keep='last')
-        
-        # Merge this into our main merged_data
-        merged_data = pd.merge(
-            merged_data,
-            return_lookup,
-            left_on='amazon-order-id',
-            right_on='Order ID',
-            how='left'
-        )
-        # Clean up
-        merged_data.drop(columns=['Order ID'], inplace=True, errors='ignore')
-    else:
-        merged_data['raw_return_reason'] = "Unknown"
-
-    # Also keep the status (Return/Refund)
-    merged_data.rename(columns={'Return type': 'Status'}, inplace=True)
-
-    # Ensure 'Status' and 'raw_return_reason' exist even if merge found zero returns
-    if 'Status' not in merged_data.columns:
-        merged_data['Status'] = None
-    if 'raw_return_reason' not in merged_data.columns:
-        merged_data['raw_return_reason'] = None
-
-    merged_data.drop(columns=['Order ID'], inplace=True, errors='ignore')
 
     # Add Amz Fees
     amz_fees_col = find_column(Cost_price, ['Amz Fees', 'amz fees', 'amazon fees', 'fees'])
@@ -533,25 +445,87 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     else:
         merged_data['Amz Fees'] = 0
 
-    # --- 8. Calculate Final Summary ---
-    logger.warning("--- 8. Calculating Final Summary ---")
-    # Find 'Status' or 'status' dynamically
-    status_col = next((c for c in merged_data.columns if c.lower() == 'status'), None)
+    # --- 9. Merge Returns Data ---
+    logger.warning("--- 9. Merging Returns Data ---")
+    
+    return_order_id_col = find_column(Return, ['Order ID', 'order id', 'orderid', 'order-id'])
+    return_type_col = find_column(Return, ['Return type', 'return type', 'returntype', 'return_type', 'Status'])
+    raw_reason_col = find_column(Return, ['Return reason', 'reason', 'return-reason', 'detailed-reason'])
 
-    if status_col:
-        # Items NOT returned (where Status is NaN)
-        filtered_na = merged_data[merged_data[status_col].isna()]
-        logger.info(f"Filtered {len(filtered_na)} non-returned items for profit calculation.")
+    if all([return_order_id_col, return_type_col]):
+        return_lookup = Return[[return_order_id_col, return_type_col]].copy()
+        return_lookup.columns = ['Order ID', 'Return type']
+        
+        if raw_reason_col:
+            return_lookup['raw_return_reason'] = Return[raw_reason_col]
+        else:
+            return_lookup['raw_return_reason'] = "Unknown"
+        
+        return_lookup['Order ID'] = return_lookup['Order ID'].astype(str)
+        return_lookup = return_lookup.drop_duplicates(subset=['Order ID'], keep='last')
+        
+        merged_data = pd.merge(
+            merged_data,
+            return_lookup,
+            left_on='amazon-order-id',
+            right_on='Order ID',
+            how='left'
+        )
+        merged_data.drop(columns=['Order ID'], inplace=True, errors='ignore')
     else:
-        # Fallback: if column is missing, treat all as non-returned so profit isn't 0
-        filtered_na = merged_data.copy()
-        logger.warning("Status column not found in merged_data; using all records for summary.")
+        merged_data['Return type'] = None
+        merged_data['raw_return_reason'] = None
 
-    total_quantity = filtered_na['quantity'].sum() if 'quantity' in filtered_na.columns else 0
-    total_payment = filtered_na['total'].sum() if 'total' in filtered_na.columns else 0
-    total_cost = filtered_na['Total Cost'].sum() if 'Total Cost' in filtered_na.columns else 0
+    merged_data.rename(columns={'Return type': 'Status'}, inplace=True)
 
-    # Calculate total returned quantity directly from Return file
+    # --- 10. Post-Merge Analysis ---
+    logger.warning("--- 10. Running Post-Merge Analysis ---")
+
+    # TOP 10 STATES by Quantity
+    if 'ship_state' in merged_data.columns and merged_data['ship_state'].notna().any():
+        top_10_states_data = merged_data[['ship_state', 'quantity']].copy()
+        top_10_states_data['ship_state'] = top_10_states_data['ship_state'].astype(str).str.strip().str.title()
+        top_10_states_data['quantity'] = pd.to_numeric(top_10_states_data['quantity'], errors='coerce')
+        top_10_states_data = top_10_states_data.dropna(subset=['quantity'])
+        top_10_states_grouped = top_10_states_data.groupby('ship_state', as_index=False)['quantity'].sum()
+        top_10_states = top_10_states_grouped.sort_values('quantity', ascending=False).head(10).reset_index(drop=True)
+        top_10_states.insert(0, 'Rank', range(1, len(top_10_states) + 1))
+    else:
+        top_10_states = pd.DataFrame(columns=['Rank', 'ship_state', 'quantity'])
+
+    # TOP 10 SKUs by Quantity (ALL orders)
+    top_10_data = merged_data[['sku', 'quantity']].copy()
+    top_10_data['sku'] = top_10_data['sku'].astype(str).str.strip().str.upper()
+    top_10_data['quantity'] = pd.to_numeric(top_10_data['quantity'], errors='coerce')
+    top_10_data = top_10_data.dropna(subset=['quantity'])
+    top_10_grouped = top_10_data.groupby('sku', as_index=False)['quantity'].sum()
+    top_10_skus = top_10_grouped.sort_values('quantity', ascending=False).head(10).reset_index(drop=True)
+    top_10_skus.insert(0, 'Rank', range(1, len(top_10_skus) + 1))
+
+    # --- 11. Calculate Final Summary (REVENUE-BASED) ---
+    logger.warning("--- 11. Calculating Final Summary (Revenue-Based) ---")
+    
+    # Filter out returned items for profit calculation
+    status_col = next((c for c in merged_data.columns if c.lower() == 'status'), None)
+    
+    if status_col:
+        non_returned = merged_data[merged_data[status_col].isna()]
+    else:
+        non_returned = merged_data.copy()
+
+    # TOTAL CALCULATIONS (ALL ORDERS)
+    total_quantity = merged_data['quantity'].sum()
+    total_revenue = merged_data['revenue'].sum()
+    
+    # PAYMENT TRACKING
+    total_payment_received = merged_data['payment_received'].sum()
+    total_pending_payment = total_revenue - total_payment_received
+    
+    # COST CALCULATIONS (excluding returns)
+    total_cost = non_returned['Total Cost'].sum()
+    total_amz_fees = non_returned['Amz Fees'].sum()
+    
+    # RETURNS
     return_quantity_col = find_column(Return, ['Return quantity', 'return quantity', 'quantity', 'qty', 'returned qty'])
     if return_quantity_col:
         Return[return_quantity_col] = pd.to_numeric(Return[return_quantity_col], errors='coerce')
@@ -559,46 +533,59 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
     else:
         total_return_quantity = 0
 
-    total_amz_fees = merged_data['Amz Fees'].sum()
-
-    # --- 9. Dynamic Expenses ---
+    # DYNAMIC EXPENSES
     if not isinstance(dynamic_expenses, dict):
-        raise Exception("❌ 'dynamic_expenses' must be a dictionary, e.g. {'Ad Cost': 1000, 'Office Rent': 2000}")
+        raise Exception("❌ 'dynamic_expenses' must be a dictionary")
 
     total_expense = sum(dynamic_expenses.values())
-    net_profit = total_payment - (total_cost + total_expense) # Note: Your old code had total_packing
+    
+    # NET PROFIT CALCULATION (Revenue - Costs - Expenses)
+    net_profit = total_revenue - (total_cost + total_amz_fees + total_expense)
 
-    # --- 10. Prepare dynamic summary table ---
+    # --- 12. Prepare Summary Table ---
     summary_rows = [
-        ('Total Quantity', total_quantity),
-        ('Total Payment', total_payment),
+        ('Total Quantity Ordered', total_quantity),
+        ('Total Revenue (All Orders)', total_revenue),
+        ('Total Payment Received', total_payment_received),
+        ('Total Pending Payment', total_pending_payment),
+        ('Total Unpaid Order Quantity', total_unpaid_quantity),
         ('Total Cost', total_cost),
         ('Total Amz Fees', total_amz_fees),
         ('Total Return Quantity', total_return_quantity),
-        ('Total Unpaid Orders', total_unpaid_orders)
     ]
 
-    # Add dynamic user expenses
+    # Add dynamic expenses
     for name, value in dynamic_expenses.items():
         summary_rows.append((name, value))
 
-    # Add final Net Profit
+    # Add final metrics
+    summary_rows.append(('Total Expenses', total_expense))
     summary_rows.append(('Net Profit', net_profit))
+    
     summary_data = pd.DataFrame(summary_rows, columns=['Metric', 'Value'])
 
-    # --- 11. Reorder Columns for Final Report ---
+    # --- 13. Reorder Columns for Final Report ---
+    logger.warning("--- 13. Preparing Final Report ---")
+    
     cols = [
-        'amazon-order-id', 'order_date', 'sku',
-        'quantity', 'item_price', 'real_revenue',
-        'total', 'Product Cost', 'Total Cost',
-        'Status','raw_return_reason', 'ship_state', 'Amz Fees'
+        'amazon-order-id', 'order_date', 'sku', 'quantity',
+        'item_price', 'revenue', 'payment_status', 'payment_received',
+        'Product Cost', 'Total Cost', 'Amz Fees',
+        'Status', 'raw_return_reason', 'ship_state'
     ]
 
     final_cols = [col for col in cols if col in merged_data.columns]
     merged_data = merged_data[final_cols]
-    logger.warning("📈 Columns successfully ordered.")
+
+    # Rename for clarity
+    merged_data.rename(columns={
+        'payment_status': 'Is Paid',
+        'payment_received': 'Payment Amount'
+    }, inplace=True)
+
+    # --- 14. Save Final Report ---
+    logger.warning("--- 14. Saving Final Report ---")
     
-    logger.warning("--- Saving Final Report ---")
     current_date = datetime.now().strftime('%d-%B-%Y-%H-%M')
     file_name = f"{current_date}.xlsx"
     output_path = os.path.join(output_folder, file_name)
@@ -615,6 +602,11 @@ def process_data(order_files, payment_files, return_files, cost_price_file,
         daily_revenue.to_excel(writer, sheet_name='Daily_Revenue', index=False)
         return_reasons.to_excel(writer, sheet_name='Return_Reasons', index=False)
 
-
     logger.warning(f"✅ Processing complete. File saved at: {output_path}")
+    logger.warning(f"📊 Summary:")
+    logger.warning(f"   Total Revenue: ₹{total_revenue:,.2f}")
+    logger.warning(f"   Payment Received: ₹{total_payment_received:,.2f}")
+    logger.warning(f"   Pending Payment: ₹{total_pending_payment:,.2f}")
+    logger.warning(f"   Net Profit: ₹{net_profit:,.2f}")
+    
     return file_name
